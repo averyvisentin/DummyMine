@@ -172,14 +172,6 @@ function communicate_with_chunky()
     return false
 end
 
--- Graceful shutdown function
-function graceful_shutdown()
-    log_error('Performing graceful shutdown')
-    -- Add steps to safely stop the turtle, such as saving state, moving to a safe location, etc.
-    error('Shutting down due to critical error')
-end
-
-
 bumps = {
     north = { 0,  0, -1},
     south = { 0,  0,  1},
@@ -393,6 +385,9 @@ end
 
 
 function go(direction, nodig)
+    local retryLimit = 5 -- Maximum number of move attempts
+    local retryCount = 0 -- Current retry attempt
+
     if not nodig then
         if detect[direction] then
             if detect[direction]() then
@@ -400,19 +395,27 @@ function go(direction, nodig)
             end
         end
     end
-    if not move[direction] then
-        return false
-    end
-    if not move[direction]() then
-        if attack[direction] then
-            attack[direction]()
-        end
-        return false
-    end
-    log_movement(direction)
-    return true
-end
 
+    while retryCount < retryLimit do
+        if not move[direction] then
+            return false -- If the move function for the direction does not exist, exit early
+        end
+
+        if move[direction]() then
+            log_movement(direction) -- Log successful movement
+            return true -- Movement successful, exit function
+        else
+            if attack[direction] then
+                attack[direction]() -- Attempt to attack in case the obstacle is an attackable entity
+            end
+            retryCount = retryCount + 1 -- Increment retry count
+            sleep(1) -- Wait for 1 second before retrying
+        end
+    end
+
+    -- If the function reaches this point, all retries have failed
+    return false
+end
 
 function go_to_axis(axis, coordinate, nodig)
     local delta = coordinate - state.location[axis]
@@ -931,7 +934,7 @@ function mine_vein(direction)
 end
 
 function clear_gravity_blocks()
-    for _, direction in pairs({'forward', 'up', 'left', 'right'}) do
+    for _, direction in pairs({'forward', 'up'}) do
         while config.gravitynames[ ({inspect[direction]()})[2].name ] do
             safedig(direction)
             sleep(0.1)
