@@ -49,9 +49,16 @@ function contains(open_set, node)
     return false
 end
 
--- Heuristic function: Manhattan distance
-function heuristic(pos, goal)
-    return math.abs(pos.x - goal.x) + math.abs(pos.y - goal.y) + math.abs(pos.z - goal.z)
+-- Heuristic function: Manhattan distance to the closest end location
+function heuristic(pos, end_locations)
+    local minDist = math.huge
+    for _, loc in pairs(end_locations) do
+        local dist = math.abs(pos.x - loc.x) + math.abs(pos.y - loc.y) + math.abs(pos.z - loc.z)
+        if dist < minDist then
+            minDist = dist
+        end
+    end
+    return minDist
 end
 
 -- Convert path from nodes to directions
