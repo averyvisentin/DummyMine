@@ -94,6 +94,33 @@ function sync_with_chunky()
     return true
 end
 
+-- Move function with retries
+function safe_move(direction)
+    local attempts = 3
+    while attempts > 0 do
+        if move[direction]() then
+            return true
+        end
+        attempts = attempts - 1
+        sleep(0.5)
+    end
+    log_error('Failed to move ' .. direction)
+    return false
+end
+
+-- Safe dig function with error handling
+function safe_dig(direction)
+    if not dig[direction] then
+        log_error('Invalid direction for digging: ' .. direction)
+        return false
+    end
+    if not dig[direction]() then
+        log_error('Failed to dig ' .. direction)
+        return false
+    end
+    return true
+end
+
 -- GPS recovery function
 function recover_gps()
     local attempts = 3
@@ -202,7 +229,7 @@ attack = {
 
 
 getblock = {
-    
+
     up = function(pos, fac)
         if not pos then pos = state.location end
         if not fac then fac = state.orientation end
@@ -221,21 +248,21 @@ getblock = {
         local bump = bumps[fac]
         return {x = pos.x + bump[1], y = pos.y + bump[2], z = pos.z + bump[3]}
     end,
-    
+
     back = function(pos, fac)
         if not pos then pos = state.location end
         if not fac then fac = state.orientation end
         local bump = bumps[fac]
         return {x = pos.x - bump[1], y = pos.y - bump[2], z = pos.z - bump[3]}
     end,
-    
+
     left = function(pos, fac)
         if not pos then pos = state.location end
         if not fac then fac = state.orientation end
         local bump = bumps[left_shift[fac]]
         return {x = pos.x + bump[1], y = pos.y + bump[2], z = pos.z + bump[3]}
     end,
-    
+
     right = function(pos, fac)
         if not pos then pos = state.location end
         if not fac then fac = state.orientation end
@@ -305,8 +332,8 @@ function follow_route(route)
     end
     return true
 end
-                    
-                    
+
+
 function face(orientation)
     if state.orientation == orientation then
         return true
@@ -371,7 +398,7 @@ function go_to_axis(axis, coordinate, nodig)
     if delta == 0 then
         return true
     end
-    
+
     if axis == 'x' then
         if delta > 0 then
             if not face('east') then return false end
@@ -385,7 +412,7 @@ function go_to_axis(axis, coordinate, nodig)
             if not face('north') then return false end
         end
     end
-    
+
     for i = 1, math.abs(delta) do
         if axis == 'y' then
             if delta > 0 then
@@ -559,56 +586,26 @@ function go_to_mine_exit(strip)
     end
 end
 
--- Combined function for safe movement and digging with blacklist checking
-function safe_action(direction)
-    -- Default direction to 'forward' if not specified
-    direction = direction or 'forward'
 
-    -- Function to attempt movement with retries
-    local function try_move()
-        local attempts = 3
-        while attempts > 0 do
-            if move[direction]() then
-                return true -- Successful move
-            end
-            attempts = attempts - 1
-            sleep(0.5) -- Wait before retrying
-        end
-        log_error('Failed to move ' .. direction)
-        return false -- Failed to move after retries
+function safedig(direction)
+    -- DIG IF BLOCK NOT ON BLACKLIST
+    if not direction then
+        direction = 'forward'
     end
 
-    -- Function to check and perform digging considering blacklist
-    local function try_dig()
-        if not dig[direction] then
-            log_error('Invalid direction for digging: ' .. direction)
-            return false
-        end
-
-        local success, data = inspect[direction]()
-        if success then
-            local block_name = data.name
-            for _, word in pairs(config.dig_disallow) do
-                if string.find(string.lower(block_name), word) then
-                    return true -- Block is blacklisted, skip digging
-                end
-            end
-            if not dig[direction]() then
-                log_error('Failed to dig ' .. direction)
+    local block_name = ({inspect[direction]()})[2].name
+    if block_name then
+        for _, word in pairs(config.dig_disallow) do
+            if string.find(string.lower(block_name), word) then
                 return false
             end
         end
-        return true -- Proceed if no block or digging was successful
-    end
 
-    -- Attempt to dig first if applicable
-    if not try_dig() then
-        return false -- Stop if digging failed or was not allowed
+        return dig[direction]()
     end
-
-    -- Attempt to move
-    return try_move()
+    return true
 end
+
 
 function dump_items(omit)
     for slot = 1, 16 do
@@ -619,7 +616,7 @@ function dump_items(omit)
     end
     return true
 end
-    
+
 
 
 function prepare(min_fuel_amount)
@@ -685,27 +682,27 @@ function calibrate()
     end
     state.location = {x = nx, y = ny, z = nz}
     print('Calibrated to ' .. str_xyz(state.location, state.orientation))
-    
+
     back()
-    
+
     if basics.in_area(state.location, config.locations.home_area) then
         face(left_shift[left_shift[config.locations.homes.increment]])
     end
-    
+
     return true
 end
 
 
 function initialize(session_id, config_values)
     -- INITIALIZE TURTLE
-    
+
     state.session_id = session_id
-    
+
     -- COPY CONFIG DATA INTO MEMORY
     for k, v in pairs(config_values) do
         config[k] = v
     end
-    
+
     -- DETERMINE TURTLE TYPE
     state.peripheral_left = peripheral.getType('left')
     state.peripheral_right = peripheral.getType('right')
@@ -725,7 +722,7 @@ function initialize(session_id, config_values)
             state.peripheral_left = 'pick'
         end
     end
-    
+
     state.request_id = 1
     state.initialized = true
     return true
@@ -793,14 +790,14 @@ end
 function scan(valid, ores)
     local checked_left  = false
     local checked_right = false
-    
+
     local f = str_xyz(getblock.forward())
     local u = str_xyz(getblock.up())
     local d = str_xyz(getblock.down())
     local l = str_xyz(getblock.left())
     local r = str_xyz(getblock.right())
     local b = str_xyz(getblock.back())
-    
+
     if not valid[f] and valid[f] ~= false then
         valid[f] = detect_ore('forward')
         ores[f] = valid[f]
@@ -878,7 +875,7 @@ end
 
 function mine_vein(direction)
     if not face(direction) then return false end
-    
+
     -- Log starting location
     local start = str_xyz({x = state.location.x, y = state.location.y, z = state.location.z}, state.orientation)
 
@@ -912,7 +909,7 @@ function mine_vein(direction)
     if detect.up() then
         safedig('up')
     end
-    
+
     return true
 end
 
@@ -926,4 +923,3 @@ function clear_gravity_blocks()
     end
     return true
 end
-
