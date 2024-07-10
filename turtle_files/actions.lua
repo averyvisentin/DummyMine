@@ -874,28 +874,36 @@ function scan(valid, ores)
     end
 end
 
--- Modified fastest_route function to use A* pathfinding
 function fastest_route(area, pos, fac, end_locations)
-    -- Convert end_locations to a more usable format for A*
-    local goals = {}
-    for loc_str in pairs(end_locations) do
-        local x, y, z = loc_str:match("(%d+),(%d+),(%d+)")
-        table.insert(goals, {x = tonumber(x), y = tonumber(y), z = tonumber(z)})
-    end
-
-    -- Find the path to the closest goal
-    local shortest_path = nil
-    for _, goal in ipairs(goals) do
-        local path = a_star_pathfinding(pos, goal, distance)
-        if path and (not shortest_path or #path < #shortest_path) then
-            shortest_path = path
+    local queue = {}
+    local explored = {}
+    table.insert(queue,
+        {
+            coords = {x = pos.x, y = pos.y, z = pos.z},
+            facing = fac,
+            path = '',
+        }
+    )
+    explored[str_xyz(pos, fac)] = true
+ 
+    while #queue > 0 do
+        local node = table.remove(queue, 1)
+        if end_locations[str_xyz(node.coords)] or end_locations[str_xyz(node.coords, node.facing)] then
+            return node.path
         end
-    end
-
-    if shortest_path then
-        return path_to_directions(shortest_path)
-    else
-        return nil -- No path found
+        for _, step in pairs({
+                {coords = node.coords,                                facing = left_shift[node.facing],  path = node.path .. 'l'},
+                {coords = node.coords,                                facing = right_shift[node.facing], path = node.path .. 'r'},
+                {coords = getblock.forward(node.coords, node.facing), facing = node.facing,              path = node.path .. 'f'},
+                {coords = getblock.up(node.coords, node.facing),      facing = node.facing,              path = node.path .. 'u'},
+                {coords = getblock.down(node.coords, node.facing),    facing = node.facing,              path = node.path .. 'd'},
+                }) do
+            explore_string = str_xyz(step.coords, step.facing)
+            if not explored[explore_string] and (not area or area[str_xyz(step.coords)]) then
+                explored[explore_string] = true
+                table.insert(queue, step)
+            end
+        end
     end
 end
 
