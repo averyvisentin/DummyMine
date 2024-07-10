@@ -385,8 +385,11 @@ blocktags = {
     --     which don't posess this exact tag (for example certus quartzfrom AE2)
     ['forge:ores'] = true,
     ['c:ores'] = true,
+    ['c:raw_ores'] = true,
     ['c:gems'] = true,
     ['c:clusters'] = true,
+    ['techreborn:ores'] = true,
+    
     -- adds Certus Quartz and Charged Certus Quartz
     ['forge:ores/certus_quartz'] = true
 }
