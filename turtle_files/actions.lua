@@ -19,39 +19,63 @@ function update_state(new_location, new_orientation)
 end
 
 
--- A* Algorithm Implementation
+-- Insert function for priority queue
+function insert_into_open_set(open_set, node, f_score)
+    local inserted = false
+    for i = 1, #open_set do
+        if f_score[node] < f_score[open_set[i]] then
+            table.insert(open_set, i, node)
+            inserted = true
+            break
+        end
+    end
+    if not inserted then
+        table.insert(open_set, node)
+    end
+end
+
+-- Pop function for priority queue
+function pop_from_open_set(open_set)
+    return table.remove(open_set, 1)
+end
+
+-- Contains function for priority queue
+function contains(open_set, node)
+    for _, n in ipairs(open_set) do
+        if n == node then
+            return true
+        end
+    end
+    return false
+end
+
+-- Modified A* Algorithm Implementation
 function a_star_pathfinding(start, goal, heuristic)
-    local open_set = {start}
+    local open_set = {}
+    insert_into_open_set(open_set, start, {[start] = heuristic(start, goal)})
     local came_from = {}
     local g_score = {[start] = 0}
     local f_score = {[start] = heuristic(start, goal)}
 
     while #open_set > 0 do
-        local current = open_set[1]
-        for _, node in ipairs(open_set) do
-            if f_score[node] < f_score[current] then
-                current = node
-            end
-        end
+        local current = pop_from_open_set(open_set)
 
         if current == goal then
             return reconstruct_path(came_from, current)
         end
 
-        table.remove(open_set, current)
         for _, neighbor in ipairs(get_neighbors(current)) do
             local tentative_g_score = g_score[current] + distance_between(current, neighbor)
-            if tentative_g_score < g_score[neighbor] then
+            if g_score[neighbor] == nil or tentative_g_score < g_score[neighbor] then
                 came_from[neighbor] = current
                 g_score[neighbor] = tentative_g_score
                 f_score[neighbor] = g_score[neighbor] + heuristic(neighbor, goal)
                 if not contains(open_set, neighbor) then
-                    table.insert(open_set, neighbor)
+                    insert_into_open_set(open_set, neighbor, f_score)
                 end
             end
         end
     end
-    return nil
 end
 
 function reconstruct_path(came_from, current)
@@ -64,34 +88,31 @@ function reconstruct_path(came_from, current)
 end
 
 function get_neighbors(node)
-    -- Implement neighbor finding logic
-end
+    local neighbors = {}
+    -- Updated directions to include up and down along z-axis
+    local directions = {
+        {x = 0, y = -1, z = 0}, -- up
+        {x = 0, y = 1, z = 0},  -- down
+        {x = -1, y = 0, z = 0}, -- left
+        {x = 1, y = 0, z = 0},  -- right
+        {x = 0, y = 0, z = -1}, -- above
+        {x = 0, y = 0, z = 1}   -- below
+    }
+    local grid_size = {width = 3, height = 3, depth = 3} -- Example grid size including depth
 
-function distance_between(nodeA, nodeB)
-    -- Implement distance calculation logic
-end
+    for _, direction in ipairs(directions) do
+        local neighbor_x = node.x + direction.x
+        local neighbor_y = node.y + direction.y
+        local neighbor_z = node.z + direction.z -- Added z coordinate
 
-function contains(set, element)
-    for _, value in ipairs(set) do
-        if value == element then
-            return true
+        if neighbor_x >= 1 and neighbor_x <= grid_size.width and
+           neighbor_y >= 1 and neighbor_y <= grid_size.height and
+           neighbor_z >= 1 and neighbor_z <= grid_size.depth then -- Check for z coordinate within bounds
+            table.insert(neighbors, {x = neighbor_x, y = neighbor_y, z = neighbor_z})
         end
     end
-    return false
-end
 
-function sync_with_chunky()
-    local chunky_position = gps.locate_chunky()
-    if not chunky_position then
-        -- Attempt to relocate chunky using last known position
-        chunky_position = state.chunky_last_known_position
-        if not chunky_position then
-            return false
-        end
-    end
-    state.chunky_last_known_position = chunky_position
-    -- Implement synchronization logic
-    return true
+    return neighbors
 end
 
 -- Move function with retries
@@ -876,32 +897,28 @@ end
 function mine_vein(direction)
     if not face(direction) then return false end
 
-    -- Log starting location
     local start = str_xyz({x = state.location.x, y = state.location.y, z = state.location.z}, state.orientation)
 
-    -- Begin block map
     local valid = {}
     local ores = {}
     valid[str_xyz(state.location)] = true
     valid[str_xyz(getblock.back(state.location, state.orientation))] = false
+
     for i = 1, config.vein_max do
-
-        -- Scan adjacent
-        scan(valid, ores)
-
-        -- Search for nearest ore
-        local route = fastest_route(valid, state.location, state.orientation, ores)
-
-        -- Check if there is one
-        if not route then
-            break
+        -- Scan adjacent using get_neighbors for 3D
+        local neighbors = get_neighbors(state.location)
+        for _, neighbor in ipairs(neighbors) do
+            -- Now includes z coordinate for 3D mining
+            local neighbor_pos = {x = neighbor.x, y = neighbor.y, z = neighbor.z}
+            scan(valid, ores, neighbor_pos)
         end
-
-        -- Retrieve ore
+    
+        local route = fastest_route(valid, state.location, state.orientation, ores)
+        if not route then break end
+    
         turtle.select(1)
         if not follow_route(route) then return false end
         ores[str_xyz(state.location)] = nil
-
     end
 
     if not follow_route(fastest_route(valid, state.location, state.orientation, {[start] = true})) then return false end
@@ -913,12 +930,11 @@ function mine_vein(direction)
     return true
 end
 
-
 function clear_gravity_blocks()
-    for _, direction in pairs({'forward', 'up'}) do
+    for _, direction in pairs({'forward', 'up', 'left', 'right'}) do
         while config.gravitynames[ ({inspect[direction]()})[2].name ] do
             safedig(direction)
-            sleep(1)
+            sleep(0.1)
         end
     end
     return true
