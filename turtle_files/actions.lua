@@ -49,18 +49,6 @@ function contains(open_set, node)
     return false
 end
 
--- Heuristic function: Manhattan distance to the closest end location
-function heuristic(pos, end_locations)
-    local minDist = math.huge
-    for _, loc in pairs(end_locations) do
-        local dist = math.abs(pos.x - loc.x) + math.abs(pos.y - loc.y) + math.abs(pos.z - loc.z)
-        if dist < minDist then
-            minDist = dist
-        end
-    end
-    return minDist
-end
-
 -- Convert path from nodes to directions
 function path_to_directions(path)
     local directions = ""
@@ -79,12 +67,12 @@ function path_to_directions(path)
 end
 
 -- Modified A* Algorithm Implementation
-function a_star_pathfinding(start, goal, heuristic)
+function a_star_pathfinding(start, goal)
     local open_set = {}
-    insert_into_open_set(open_set, start, {[start] = heuristic(start, goal)})
+    insert_into_open_set(open_set, start, {[start] = basics.distance(start, goal)})
     local came_from = {}
     local g_score = {[start] = 0}
-    local f_score = {[start] = heuristic(start, goal)}
+    local f_score = {[start] = basics.distance(start, goal)}
 
     while #open_set > 0 do
         local current = pop_from_open_set(open_set)
@@ -98,7 +86,7 @@ function a_star_pathfinding(start, goal, heuristic)
             if g_score[neighbor] == nil or tentative_g_score < g_score[neighbor] then
                 came_from[neighbor] = current
                 g_score[neighbor] = tentative_g_score
-                f_score[neighbor] = g_score[neighbor] + heuristic(neighbor, goal)
+                f_score[neighbor] = g_score[neighbor] + distance(neighbor, goal)
                 if not contains(open_set, neighbor) then
                     insert_into_open_set(open_set, neighbor, f_score)
                 end
@@ -154,18 +142,15 @@ function safe_move(direction)
         attempts = attempts - 1
         sleep(0.5)
     end
-    log_error('Failed to move ' .. direction)
     return false
 end
 
 -- Safe dig function with error handling
 function safe_dig(direction)
     if not dig[direction] then
-        log_error('Invalid direction for digging: ' .. direction)
         return false
     end
     if not dig[direction]() then
-        log_error('Failed to dig ' .. direction)
         return false
     end
     return true
@@ -183,7 +168,6 @@ function recover_gps()
         attempts = attempts - 1
         sleep(1)
     end
-    log_error('Failed to recover GPS')
     return false
 end
 
@@ -197,7 +181,6 @@ function communicate_with_chunky()
         end
         timeout = timeout - 1
     end
-    log_error('Failed to communicate with chunky turtle')
     return false
 end
 
@@ -903,7 +886,7 @@ function fastest_route(area, pos, fac, end_locations)
     -- Find the path to the closest goal
     local shortest_path = nil
     for _, goal in ipairs(goals) do
-        local path = a_star_pathfinding(pos, goal, heuristic)
+        local path = a_star_pathfinding(pos, goal, distance)
         if path and (not shortest_path or #path < #shortest_path) then
             shortest_path = path
         end
