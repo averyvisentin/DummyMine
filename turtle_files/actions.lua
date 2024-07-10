@@ -49,6 +49,28 @@ function contains(open_set, node)
     return false
 end
 
+-- Heuristic function: Manhattan distance
+function heuristic(pos, goal)
+    return math.abs(pos.x - goal.x) + math.abs(pos.y - goal.y) + math.abs(pos.z - goal.z)
+end
+
+-- Convert path from nodes to directions
+function path_to_directions(path)
+    local directions = ""
+    for i = 1, #path - 1 do
+        local dx = path[i+1].x - path[i].x
+        local dy = path[i+1].y - path[i].y
+        local dz = path[i+1].z - path[i].z
+        if dx == 1 then directions = directions .. "r" end
+        if dx == -1 then directions = directions .. "l" end
+        if dy == 1 then directions = directions .. "u" end
+        if dy == -1 then directions = directions .. "d" end
+        if dz == 1 then directions = directions .. "f" end
+        if dz == -1 then directions = directions .. "b" end -- Assuming 'b' is back
+    end
+    return directions
+end
+
 -- Modified A* Algorithm Implementation
 function a_star_pathfinding(start, goal, heuristic)
     local open_set = {}
@@ -862,37 +884,28 @@ function scan(valid, ores)
     end
 end
 
-
+-- Modified fastest_route function to use A* pathfinding
 function fastest_route(area, pos, fac, end_locations)
-    local queue = {}
-    local explored = {}
-    table.insert(queue,
-        {
-            coords = {x = pos.x, y = pos.y, z = pos.z},
-            facing = fac,
-            path = '',
-        }
-    )
-    explored[str_xyz(pos, fac)] = true
+    -- Convert end_locations to a more usable format for A*
+    local goals = {}
+    for loc_str in pairs(end_locations) do
+        local x, y, z = loc_str:match("(%d+),(%d+),(%d+)")
+        table.insert(goals, {x = tonumber(x), y = tonumber(y), z = tonumber(z)})
+    end
 
-    while #queue > 0 do
-        local node = table.remove(queue, 1)
-        if end_locations[str_xyz(node.coords)] or end_locations[str_xyz(node.coords, node.facing)] then
-            return node.path
+    -- Find the path to the closest goal
+    local shortest_path = nil
+    for _, goal in ipairs(goals) do
+        local path = a_star_pathfinding(pos, goal, heuristic)
+        if path and (not shortest_path or #path < #shortest_path) then
+            shortest_path = path
         end
-        for _, step in pairs({
-                {coords = node.coords,                                facing = left_shift[node.facing],  path = node.path .. 'l'},
-                {coords = node.coords,                                facing = right_shift[node.facing], path = node.path .. 'r'},
-                {coords = getblock.forward(node.coords, node.facing), facing = node.facing,              path = node.path .. 'f'},
-                {coords = getblock.up(node.coords, node.facing),      facing = node.facing,              path = node.path .. 'u'},
-                {coords = getblock.down(node.coords, node.facing),    facing = node.facing,              path = node.path .. 'd'},
-                }) do
-            explore_string = str_xyz(step.coords, step.facing)
-            if not explored[explore_string] and (not area or area[str_xyz(step.coords)]) then
-                explored[explore_string] = true
-                table.insert(queue, step)
-            end
-        end
+    end
+
+    if shortest_path then
+        return path_to_directions(shortest_path)
+    else
+        return nil -- No path found
     end
 end
 
