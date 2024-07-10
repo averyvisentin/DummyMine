@@ -94,33 +94,6 @@ function sync_with_chunky()
     return true
 end
 
--- Move function with retries
-function safe_move(direction)
-    local attempts = 3
-    while attempts > 0 do
-        if move[direction]() then
-            return true
-        end
-        attempts = attempts - 1
-        sleep(0.5)
-    end
-    log_error('Failed to move ' .. direction)
-    return false
-end
-
--- Safe dig function with error handling
-function safe_dig(direction)
-    if not dig[direction] then
-        log_error('Invalid direction for digging: ' .. direction)
-        return false
-    end
-    if not dig[direction]() then
-        log_error('Failed to dig ' .. direction)
-        return false
-    end
-    return true
-end
-
 -- GPS recovery function
 function recover_gps()
     local attempts = 3
@@ -586,26 +559,56 @@ function go_to_mine_exit(strip)
     end
 end
 
+-- Combined function for safe movement and digging with blacklist checking
+function safe_action(direction)
+    -- Default direction to 'forward' if not specified
+    direction = direction or 'forward'
 
-function safedig(direction)
-    -- DIG IF BLOCK NOT ON BLACKLIST
-    if not direction then
-        direction = 'forward'
+    -- Function to attempt movement with retries
+    local function try_move()
+        local attempts = 3
+        while attempts > 0 do
+            if move[direction]() then
+                return true -- Successful move
+            end
+            attempts = attempts - 1
+            sleep(0.5) -- Wait before retrying
+        end
+        log_error('Failed to move ' .. direction)
+        return false -- Failed to move after retries
     end
-    
-    local block_name = ({inspect[direction]()})[2].name
-    if block_name then
-        for _, word in pairs(config.dig_disallow) do
-            if string.find(string.lower(block_name), word) then
+
+    -- Function to check and perform digging considering blacklist
+    local function try_dig()
+        if not dig[direction] then
+            log_error('Invalid direction for digging: ' .. direction)
+            return false
+        end
+
+        local success, data = inspect[direction]()
+        if success then
+            local block_name = data.name
+            for _, word in pairs(config.dig_disallow) do
+                if string.find(string.lower(block_name), word) then
+                    return true -- Block is blacklisted, skip digging
+                end
+            end
+            if not dig[direction]() then
+                log_error('Failed to dig ' .. direction)
                 return false
             end
         end
-
-        return dig[direction]()
+        return true -- Proceed if no block or digging was successful
     end
-    return true
-end
 
+    -- Attempt to dig first if applicable
+    if not try_dig() then
+        return false -- Stop if digging failed or was not allowed
+    end
+
+    -- Attempt to move
+    return try_move()
+end
 
 function dump_items(omit)
     for slot = 1, 16 do
