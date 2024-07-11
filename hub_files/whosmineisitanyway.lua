@@ -269,38 +269,55 @@ function go_mine(mining_turtle)
     update_strip(mining_turtle)
     add_task(mining_turtle, {
         action = 'mine_vein',
-        data = {mining_turtle.strip.orientation},     })
+        data = {mining_turtle.strip.orientation}
+    })
+
     update_strip(mining_turtle)
     add_task(mining_turtle, {
-        action = 'clear_gravity_blocks', })
+        action = 'clear_gravity_blocks'
+    })
+
     update_strip(mining_turtle)
-    add_task(mining_turtle,  {
-        action = move('up')     })
+    add_task(mining_turtle, {
+        action = 'move',
+        data = 'up'
+    })
+
     update_strip(mining_turtle)
     add_task(mining_turtle, {
         action = 'mine_vein',
-        data = {mining_turtle.strip.orientation},    })
+        data = {mining_turtle.strip.orientation}
+    })
+
     update_strip(mining_turtle)
-    add_task(mining_turtle,  {
-        action = move('down')     })    
+    add_task(mining_turtle, {
+        action = 'move',
+        data = 'down'
+    })    
+
     if config.use_chunky_turtles then
         add_task(mining_turtle, {
             action = 'go_to_strip',
             data = {mining_turtle.strip},
             end_state = 'wait',
             end_function = follow,
-            end_function_args = {mining_turtle.pair},    })
+            end_function_args = {mining_turtle.pair}
+        })
     else
         add_task(mining_turtle, {
             action = 'go_to_strip',
             data = {mining_turtle.strip},
-            end_state = 'wait',    })
+            end_state = 'wait'
+        })
     end
+
     mining_turtle.steps_left = mining_turtle.steps_left - 1
+
     local file = fs.open(state.turtles_dir_path .. mining_turtle.id .. '/deployed', 'w')
     file.write(mining_turtle.steps_left)
     file.close()
 end
+
 
 
 function free_turtle(turtle)
