@@ -333,9 +333,6 @@ function log_movement(direction)
 end
 
 function go(direction, nodig)
-    local retryLimit = 5 -- Maximum number of move attempts
-    local retryCount = 0 -- Current retry attempt
-
     if not nodig then
         if detect[direction] then
             if detect[direction]() then
@@ -343,34 +340,24 @@ function go(direction, nodig)
             end
         end
     end
-    -- Attempt safe_move first if available
-    if safe_move and safe_move[direction] then
-        if not safe_move[direction]() then
-            return false -- safe_move failed, exit without retrying
-        else
-            log_movement(direction) -- Log successful movement
-            return true -- Movement successful
-        end
-    end
-
-    while retryCount < retryLimit do
         if not move[direction] then
+            safe_move()
             return false -- If the move function for the direction does not exist, exit early
         end
 
         if move[direction]() then
+            safe_move()
             log_movement(direction) -- Log successful movement
             return true -- Movement successful, exit function
         else
             if attack[direction] then
                 attack[direction]() -- Attempt to attack in case the obstacle is an attackable entity
             end
-            retryCount = retryCount + 1 -- Increment retry count
-            sleep(1) -- Wait for 1 second before retrying
+            return false
         end
+        log_movement(direction)
+        return true
     end
-    return false -- Return false if all retries fail
-end
 
 function go_to_axis(axis, coordinate, nodig)
     local delta = coordinate - state.location[axis]
@@ -400,7 +387,7 @@ function go_to_axis(axis, coordinate, nodig)
                 if not go('down', nodig) then return false end
             end
         else
-            if not go('forward', nodig) then safe_move() return false end
+            if not go('forward', nodig) then return false end
         end
     end
     return true
