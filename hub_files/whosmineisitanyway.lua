@@ -516,16 +516,12 @@ function send_tasks(turtle)
         elseif (not turtle_data.busy) and ((not task.epoch) or (task.epoch > os.clock()) or (task.epoch + config.task_timeout < os.clock())) then
             -- ONLY SEND INSTRUCTION AFTER <config.task_timeout> SECONDS HAVE PASSED
             task.epoch = os.clock()
-            print(string.format('Sending %s directive to %d', task.actions[1].action, turtle.id))
+            print(string.format('Sending %s directive to %d', task.action, turtle.id))
             rednet.send(turtle.id, {
-                action = task.actions[1].action,
-                data = task.actions[1].data,
+                action = task.action,
+                data = task.data,
                 request_id = turtle_data.request_id
             }, 'mastermine')
-            table.remove(task.actions, 1)
-            if #task.actions == 0 then
-                table.remove(turtle.tasks, 1)
-            end
         end
     end
 end
