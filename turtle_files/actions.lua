@@ -66,30 +66,23 @@ function path_to_directions(path)
     return directions
 end
 
--- Modified A* Algorithm Implementation
-function a_star_pathfinding(start, goal)
-    local open_set = {}
-    insert_into_open_set(open_set, start, {[start] = basics.distance(start, goal)})
+-- BFS Algorithm Implementation
+function bfs_pathfinding(start, goal)
+    local open_set = {start} -- Queue for BFS
     local came_from = {}
-    local g_score = {[start] = 0}
-    local f_score = {[start] = basics.distance(start, goal)}
+    local visited = {[start] = true}
 
     while #open_set > 0 do
-        local current = pop_from_open_set(open_set)
-
+        local current = table.remove(open_set, 1) -- Pop the first element
         if current == goal then
             return reconstruct_path(came_from, current)
         end
 
         for _, neighbor in ipairs(get_neighbors(current)) do
-            local tentative_g_score = g_score[current] + distance_between(current, neighbor)
-            if g_score[neighbor] == nil or tentative_g_score < g_score[neighbor] then
+            if not visited[neighbor] then
+                visited[neighbor] = true
                 came_from[neighbor] = current
-                g_score[neighbor] = tentative_g_score
-                f_score[neighbor] = g_score[neighbor] + distance(neighbor, goal)
-                if not contains(open_set, neighbor) then
-                    insert_into_open_set(open_set, neighbor, f_score)
-                end
+                table.insert(open_set, neighbor) -- Add to the end of the queue
             end
         end
     end
@@ -99,7 +92,7 @@ function reconstruct_path(came_from, current)
     local total_path = {current}
     while came_from[current] do
         current = came_from[current]
-        table.insert(total_path, current)
+        table.insert(total_path, 1, current) -- Insert at the beginning to reverse the path
     end
     return total_path
 end
@@ -629,7 +622,13 @@ function safedig(direction)
         direction = 'forward'
     end
 
-    local block_name = ({inspect[direction]()})[2].name
+    -- Use pcall to safely call inspect[direction]
+    local status, result = pcall(inspect[direction])
+    if not status then
+        return false -- Return false or handle the error as needed
+    end
+
+    local block_name = result[2] and result[2].name
     if block_name then
         for _, word in pairs(config.dig_disallow) do
             if string.find(string.lower(block_name), word) then
@@ -637,7 +636,12 @@ function safedig(direction)
             end
         end
 
-        return dig[direction]()
+        -- Use pcall to safely attempt to dig
+        local dig_status, dig_result = pcall(dig[direction])
+        if not dig_status then
+            return false -- Return false or handle the error as needed
+        end
+        return dig_result
     end
     return true
 end
@@ -908,31 +912,36 @@ function fastest_route(area, pos, fac, end_locations)
 end
 
 
+
 function mine_vein(direction)
     if not face(direction) then return false end
-
+    
+    -- Log starting location
     local start = str_xyz({x = state.location.x, y = state.location.y, z = state.location.z}, state.orientation)
 
+    -- Begin block map
     local valid = {}
     local ores = {}
     valid[str_xyz(state.location)] = true
     valid[str_xyz(getblock.back(state.location, state.orientation))] = false
-
     for i = 1, config.vein_max do
-        -- Scan adjacent using get_neighbors for 3D
-        local neighbors = get_neighbors(state.location)
-        for _, neighbor in ipairs(neighbors) do
-            -- Now includes z coordinate for 3D mining
-            local neighbor_pos = {x = neighbor.x, y = neighbor.y, z = neighbor.z}
-            scan(valid, ores, neighbor_pos)
-        end
-    
+
+        -- Scan adjacent
+        scan(valid, ores)
+
+        -- Search for nearest ore
         local route = fastest_route(valid, state.location, state.orientation, ores)
-        if not route then break end
-    
+
+        -- Check if there is one
+        if not route then
+            break
+        end
+
+        -- Retrieve ore
         turtle.select(1)
         if not follow_route(route) then return false end
         ores[str_xyz(state.location)] = nil
+
     end
 
     if not follow_route(fastest_route(valid, state.location, state.orientation, {[start] = true})) then return false end
@@ -940,7 +949,7 @@ function mine_vein(direction)
     if detect.up() then
         safedig('up')
     end
-
+    
     return true
 end
 
