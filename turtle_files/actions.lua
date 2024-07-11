@@ -390,11 +390,7 @@ function go_to(end_location, end_orientation, path, nodig)
     if end_orientation then
         if not face(end_orientation) then return false end
     elseif end_location.orientation then
-        if not face(end_location.orientation) then 
-            if safe_move()  then
-            return false
-            end
-        end
+        if not face(end_location.orientation) then return false end
     end
     return true
 end
