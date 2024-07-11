@@ -853,7 +853,15 @@ function mine_vein(direction)
     if detect.up() then
         safedig('up')
     else
-        turtle.up() 
+    turtle.up() 
+    scan(valid, ores)       -- Perform a scan operation at the new position
+    local route = fastest_route(valid, state.location, state.orientation, ores)
+    if not route then
+-- Retrieve ore
+    turtle.select(1)
+    if not follow_route(route) then return false end
+    ores[str_xyz(state.location)] = nil
+end
     end
     turtle.up()
         scan(valid, ores)       -- Perform a scan operation at the new position
