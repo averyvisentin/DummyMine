@@ -835,10 +835,10 @@ function mine_vein(direction)
     local ores = {}
     valid[str_xyz(state.location)] = true
     valid[str_xyz(getblock.back(state.location, state.orientation))] = false
+    
+-- Scan adjacent -- Search for nearest ore
     for i = 1, config.vein_max do
--- Scan adjacent
         scan(valid, ores)
--- Search for nearest ore
         local route = fastest_route(valid, state.location, state.orientation, ores)
         -- Check if there is one
         if not route then
@@ -854,25 +854,19 @@ function mine_vein(direction)
         safedig('up')
     else
     turtle.up() 
+    for i = 1, config.vein_max do
     scan(valid, ores)       -- Perform a scan operation at the new position
-    local route = fastest_route(valid, state.location, state.orientation, ores)
     if not route then
+        break
+    end
 -- Retrieve ore
     turtle.select(1)
     if not follow_route(route) then return false end
     ores[str_xyz(state.location)] = nil
 end
     end
-    turtle.up()
-        scan(valid, ores)       -- Perform a scan operation at the new position
-        local route = fastest_route(valid, state.location, state.orientation, ores)
-        if not route then
--- Retrieve ore
-        turtle.select(1)
-        if not follow_route(route) then return false end
-        ores[str_xyz(state.location)] = nil
-    end
-    turtlle.down()
+    turtle.down()
+    if not turtle.down() then return false end
     if not follow_route(fastest_route(valid, state.location, state.orientation, {[start] = true})) then return false end
     return true
 end
