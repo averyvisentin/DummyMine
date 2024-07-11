@@ -18,37 +18,6 @@ function update_state(new_location, new_orientation)
     end
 end
 
-
--- Insert function for priority queue
-function insert_into_open_set(open_set, node, f_score)
-    local inserted = false
-    for i = 1, #open_set do
-        if f_score[node] < f_score[open_set[i]] then
-            table.insert(open_set, i, node)
-            inserted = true
-            break
-        end
-    end
-    if not inserted then
-        table.insert(open_set, node)
-    end
-end
-
--- Pop function for priority queue
-function pop_from_open_set(open_set)
-    return table.remove(open_set, 1)
-end
-
--- Contains function for priority queue
-function contains(open_set, node)
-    for _, n in ipairs(open_set) do
-        if n == node then
-            return true
-        end
-    end
-    return false
-end
-
 -- Convert path from nodes to directions
 function path_to_directions(path)
     local directions = ""
@@ -125,28 +94,30 @@ function get_neighbors(node)
     return neighbors
 end
 
--- Move function with retries
 function safe_move(direction)
-    local attempts = 3
+    local attempts = 4 -- There are 4 directions to check for horizontal movement
     while attempts > 0 do
-        if move[direction]() then
+        if not turtle.detect() then
+            if turtle.forward() then
+                return true
+            end
+        end
+        turtle.turnRight()
+        attempts = attempts - 1
+    end
+    -- If all horizontal directions are blocked, try to move up
+    if not turtle.detectUp() then
+        if turtle.up() then
             return true
         end
-        attempts = attempts - 1
-        sleep(0.5)
+    end
+    -- If moving up is not possible, try to move down
+    if not turtle.detectDown() then
+        if turtle.down() then
+            return true
+        end
     end
     return false
-end
-
--- Safe dig function with error handling
-function safe_dig(direction)
-    if not dig[direction] then
-        return false
-    end
-    if not dig[direction]() then
-        return false
-    end
-    return true
 end
 
 -- GPS recovery function
@@ -244,10 +215,7 @@ attack = {
     up      = turtle.attackUp,
     down    = turtle.attackDown
 }
-
-
 getblock = {
-
     up = function(pos, fac)
         if not pos then pos = state.location end
         if not fac then fac = state.orientation end
@@ -289,18 +257,15 @@ getblock = {
     end,
 }
 
-
 function digblock(direction)
     dig[direction]()
     return true
 end
 
-
 function delay(duration)
     sleep(duration)
     return true
 end
-
 
 function up()
     return go('up')
@@ -368,7 +333,6 @@ function face(orientation)
     return true
 end
 
-
 function log_movement(direction)
     if direction == 'up' then
         state.location.y = state.location.y +1
@@ -388,7 +352,6 @@ function log_movement(direction)
     return true
 end
 
-
 function go(direction, nodig)
     local retryLimit = 5 -- Maximum number of move attempts
     local retryCount = 0 -- Current retry attempt
@@ -396,7 +359,7 @@ function go(direction, nodig)
     if not nodig then
         if detect[direction] then
             if detect[direction]() then
-                safedig(direction)
+                safe_move(direction)
             end
         end
     end
@@ -410,15 +373,10 @@ function go(direction, nodig)
             log_movement(direction) -- Log successful movement
             return true -- Movement successful, exit function
         else
-            if attack[direction] then
-                attack[direction]() -- Attempt to attack in case the obstacle is an attackable entity
-            end
             retryCount = retryCount + 1 -- Increment retry count
             sleep(1) -- Wait for 1 second before retrying
         end
     end
-
-    -- If the function reaches this point, all retries have failed
     return false
 end
 
@@ -450,7 +408,7 @@ function go_to_axis(axis, coordinate, nodig)
                 if not go('down', nodig) then return false end
             end
         else
-            if not go('forward', nodig) then return false end
+            if not go('forward', nodig) then safe_move() return false end
         end
     end
     return true
@@ -458,45 +416,69 @@ end
 
 
 function go_to(end_location, end_orientation, path, nodig)
-    if path then
-        for axis in path:gmatch'.' do
-            if not go_to_axis(axis, end_location[axis], nodig) then return false end
+    local function attempt_move()
+        if path then
+            for axis in path:gmatch'.' do
+                if not go_to_axis(axis, end_location[axis], nodig) then
+                    if safe_move(direction) then
+                        return attempt_move() -- Retry after successful safe_move
+                    end
+                    return false
+                end
+            end
+        elseif end_location.path then
+            for axis in end_location.path:gmatch'.' do
+                if not go_to_axis(axis, end_location[axis], nodig) then
+                    if safe_move(direction) then
+                        return attempt_move() -- Retry after successful safe_move
+                    end
+                    return false
+                end
+            end
+        else
+            return false
         end
-    elseif end_location.path then
-        for axis in end_location.path:gmatch'.' do
-            if not go_to_axis(axis, end_location[axis], nodig) then return false end
+        if end_orientation then
+            if not face(end_orientation) then return false end
+        elseif end_location.orientation then
+            if not face(end_location.orientation) then return false end
         end
-    else
-        return false
+        return true
     end
-    if end_orientation then
-        if not face(end_orientation) then return false end
-    elseif end_location.orientation then
-        if not face(end_location.orientation) then return false end
-    end
-    return true
+    return attempt_move() -- Initial call to start the movement process
 end
 
 
 function go_route(route, xyzo)
-    local xyz_string
-    if xyzo then
-        xyz_string = str_xyz(xyzo)
-    end
-    local location_str = basics.str_xyz(state.location)
-    while route[location_str] and location_str ~= xyz_string do
-        if not go_to(route[location_str], nil, 'xyz') then return false end
-        location_str = basics.str_xyz(state.location)
-    end
-    if xyzo then
-        if location_str ~= xyz_string then
-            return false
+    local function attempt_route()
+        local xyz_string
+        if xyzo then
+            xyz_string = str_xyz(xyzo)
         end
-        if xyzo.orientation then
-            if not face(xyzo.orientation) then return false end
+        local location_str = basics.str_xyz(state.location)
+        while route[location_str] and location_str ~= xyz_string do
+            if not go_to(route[location_str], nil, 'xyz') then
+                -- Attempt safe_move if go_to fails
+                if safe_move() then
+                    return attempt_route() -- Retry after successful safe_move
+                else
+                    return false -- Return false if safe_move is unsuccessful
+                end
+            end
+            location_str = basics.str_xyz(state.location)
         end
+        if xyzo then
+            if location_str ~= xyz_string then
+                return false
+            end
+            if xyzo.orientation then
+                if not face(xyzo.orientation) then return false end
+            end
+        end
+        return true
     end
-    return true
+
+    return attempt_route() -- Initial call to start the routing process
 end
 
 
@@ -531,9 +513,13 @@ end
 
 function go_to_home_exit()
     if basics.in_area(state.location, config.locations.greater_home_area) then
-        if not go_to(config.locations.home_exit, nil, config.paths.home_to_home_exit) then return false end
+        if not go_to(config.locations.home_exit, nil, config.paths.home_to_home_exit) then 
+            safe_move(direction)
+            return false end
     elseif config.locations.main_loop_route[basics.str_xyz(state.location)] then
-        if not go_route(config.locations.main_loop_route, config.locations.home_exit) then return false end
+        if not go_route(config.locations.main_loop_route, config.locations.home_exit) then 
+            safe_move(direction)
+            return false end
     else
         return false
     end
@@ -546,35 +532,64 @@ function go_to_item_drop()
         if not go_to_home() then return false end
         if not go_to_home_exit() then return false end
     end
-    if not go_route(config.locations.main_loop_route, config.locations.item_drop) then return false end
+    if not go_route(config.locations.main_loop_route, config.locations.item_drop) then 
+        safedig(direction)
+        safe_move(direction)
+        return false end
     return true
 end
 
 
 function go_to_refuel()
-    if not config.locations.main_loop_route[basics.str_xyz(state.location)] then
-        if not go_to_home() then return false end
-        if not go_to_home_exit() then return false end
+    local function attempt()
+        if not config.locations.main_loop_route[basics.str_xyz(state.location)] then
+            if not go_to_home() then return false end
+            if not go_to_home_exit() then return false end
+        end
+        if not go_route(config.locations.main_loop_route, config.locations.refuel) then 
+            if safe_move(direction) then
+                return attempt() -- Rerun the function after successful safe_move
+            end
+            return false 
+        end
+        return true
     end
-    if not go_route(config.locations.main_loop_route, config.locations.refuel) then return false end
-    return true
+    return attempt() -- Initial call
 end
-
 
 function go_to_waiting_room()
-    if not basics.in_area(state.location, config.locations.waiting_room_line_area) then
-        if not go_to_home() then return false end
+    local function attempt()
+        if not basics.in_area(state.location, config.locations.waiting_room_line_area) then
+            if not go_to_home() then 
+                if safe_move(direction) then
+                    return attempt() -- Rerun the function after successful safe_move
+                end
+                return false 
+            end
+        end
+        if not go_to(config.locations.waiting_room, nil, config.paths.home_to_waiting_room) then
+            if safe_move(direction) then
+                return attempt() -- Rerun the function after successful safe_move
+            end
+            return false
+        end
+        return true
     end
-    if not go_to(config.locations.waiting_room, nil, config.paths.home_to_waiting_room) then return false end
-    return true
+    return attempt() -- Initial call
 end
-
 
 function go_to_mine_enter()
-    if not go_route(config.locations.waiting_room_to_mine_enter_route) then return false end
-    return true
+    local function attempt()
+        if not go_route(config.locations.waiting_room_to_mine_enter_route) then
+            if safe_move(direction) then
+                return attempt() -- Rerun the function after successful safe_move
+            end
+            return false 
+        end
+        return true
+    end
+    return attempt() -- Initial call
 end
-
 
 function go_to_strip(strip)
     if state.location.y < config.locations.mine_enter.y or basics.in_location(state.location, config.locations.mine_enter) then
@@ -587,8 +602,15 @@ function go_to_strip(strip)
                 orientation = strip.orientation
             }
         end
-        if not go_to(strip, nil, config.paths.mine_enter_to_strip) then return false end
+        if not go_to(strip, nil, config.paths.mine_enter_to_strip) then 
+            safe_move(direction)
+            return false 
+        end
         return true
+    else
+        safedig(direction)
+        safe_move(direction)
+        return false
     end
 end
 
@@ -610,8 +632,16 @@ function go_to_mine_exit(strip)
                 if not go_to_axis('z', config.locations.mine_enter.z) then return false end
             end
         end
-        if not go_to(config.locations.mine_exit, nil, 'xzy') then return false end
+        if not go_to(config.locations.mine_exit, nil, 'xzy') then 
+            safedig(direction)
+            safe_move(direction)
+            return false 
+        end
         return true
+    else
+        safedig(direction)
+        safe_move(direction)
+        return false
     end
 end
 
@@ -621,14 +651,8 @@ function safedig(direction)
     if not direction then
         direction = 'forward'
     end
-
-    -- Use pcall to safely call inspect[direction]
-    local status, result = pcall(inspect[direction])
-    if not status then
-        return false -- Return false or handle the error as needed
-    end
-
-    local block_name = result[2] and result[2].name
+    
+    local block_name = ({inspect[direction]()})[2].name
     if block_name then
         for _, word in pairs(config.dig_disallow) do
             if string.find(string.lower(block_name), word) then
@@ -636,16 +660,10 @@ function safedig(direction)
             end
         end
 
-        -- Use pcall to safely attempt to dig
-        local dig_status, dig_result = pcall(dig[direction])
-        if not dig_status then
-            return false -- Return false or handle the error as needed
-        end
-        return dig_result
+        return dig[direction]()
     end
     return true
 end
-
 
 function dump_items(omit)
     for slot = 1, 16 do
@@ -657,26 +675,56 @@ function dump_items(omit)
     return true
 end
 
-
-
 function prepare(min_fuel_amount)
-    if state.item_count > 0 then
-        if not go_to_item_drop() then return false end
-        if not dump_items(config.fuelnames) then return false end
-    end
-    local min_fuel_amount = min_fuel_amount + config.fuel_padding
-    if not go_to_refuel() then return false end
-    if not dump_items() then return false end
-    turtle.select(1)
-    if turtle.getFuelLevel() ~= 'unlimited' then
-        while turtle.getFuelLevel() < min_fuel_amount do
-            if not turtle.suck(math.min(64, math.ceil(min_fuel_amount / config.fuel_per_unit))) then return false end
-            turtle.refuel()
+    local function attempt_prepare()
+        if state.item_count > 0 then
+            if not go_to_item_drop() then
+                if safe_move() then
+                    return attempt_prepare()
+                else
+                    return false
+                end
+            end
+            if not dump_items(config.fuelnames) then
+                if safe_move() then
+                    return attempt_prepare()
+                else
+                    return false
+                end
+            end
         end
+        local min_fuel_amount = min_fuel_amount + config.fuel_padding
+        if not go_to_refuel() then
+            if safe_move() then
+                return attempt_prepare()
+            else
+                return false
+            end
+        end
+        if not dump_items() then
+            if safe_move() then
+                return attempt_prepare()
+            else
+                return false
+            end
+        end
+        turtle.select(1)
+        if turtle.getFuelLevel() ~= 'unlimited' then
+            while turtle.getFuelLevel() < min_fuel_amount do
+                if not turtle.suck(math.min(64, math.ceil(min_fuel_amount / config.fuel_per_unit))) then
+                    if safe_move() then
+                        return attempt_prepare()
+                    else
+                        return false
+                    end
+                end
+                turtle.refuel()
+            end
+        end
+        return true
     end
-    return true
+    return attempt_prepare()
 end
-
 
 function calibrate()
     -- GEOPOSITION BY MOVING TO ADJACENT BLOCK AND BACK
@@ -735,14 +783,11 @@ end
 
 function initialize(session_id, config_values)
     -- INITIALIZE TURTLE
-
     state.session_id = session_id
-
     -- COPY CONFIG DATA INTO MEMORY
     for k, v in pairs(config_values) do
         config[k] = v
     end
-
     -- DETERMINE TURTLE TYPE
     state.peripheral_left = peripheral.getType('left')
     state.peripheral_right = peripheral.getType('right')
@@ -911,48 +956,36 @@ function fastest_route(area, pos, fac, end_locations)
     end
 end
 
-
-
 function mine_vein(direction)
-    if not face(direction) then return false end
-    
-    -- Log starting location
+    if not face(direction) then return false end 
+-- Log starting location
     local start = str_xyz({x = state.location.x, y = state.location.y, z = state.location.z}, state.orientation)
-
-    -- Begin block map
+-- Begin block map
     local valid = {}
     local ores = {}
     valid[str_xyz(state.location)] = true
     valid[str_xyz(getblock.back(state.location, state.orientation))] = false
     for i = 1, config.vein_max do
-
-        -- Scan adjacent
+-- Scan adjacent
         scan(valid, ores)
-
-        -- Search for nearest ore
+-- Search for nearest ore
         local route = fastest_route(valid, state.location, state.orientation, ores)
-
         -- Check if there is one
         if not route then
             break
         end
-
-        -- Retrieve ore
+-- Retrieve ore
         turtle.select(1)
         if not follow_route(route) then return false end
         ores[str_xyz(state.location)] = nil
-
     end
-
     if not follow_route(fastest_route(valid, state.location, state.orientation, {[start] = true})) then return false end
-
     if detect.up() then
         safedig('up')
-    end
-    
+    end    
     return true
 end
-
+-- Clear gravel and Sand
 function clear_gravity_blocks()
     for _, direction in pairs({'forward', 'up'}) do
         while config.gravitynames[ ({inspect[direction]()})[2].name ] do
