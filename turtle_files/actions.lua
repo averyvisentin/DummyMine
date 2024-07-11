@@ -827,47 +827,44 @@ function fastest_route(area, pos, fac, end_locations)
 end
 
 function mine_vein(direction)
-    if not face(direction) then return false end 
--- Log starting location
+    if not face(direction) then return false end
     local start = str_xyz({x = state.location.x, y = state.location.y, z = state.location.z}, state.orientation)
--- Begin block map
     local valid = {}
     local ores = {}
     valid[str_xyz(state.location)] = true
     valid[str_xyz(getblock.back(state.location, state.orientation))] = false
-    
--- Scan adjacent -- Search for nearest ore
+
     for i = 1, config.vein_max do
         scan(valid, ores)
         local route = fastest_route(valid, state.location, state.orientation, ores)
-        -- Check if there is one
-        if not route then
-            break
-        end
--- Retrieve ore
+        if not route then break end
         turtle.select(1)
         if not follow_route(route) then return false end
         ores[str_xyz(state.location)] = nil
     end
+
     if not follow_route(fastest_route(valid, state.location, state.orientation, {[start] = true})) then return false end
+
+    -- Move up and attempt to mine again only if there's no block above or if safedig was successful
     if detect.up() then
-        safedig('up')
+        if not safedig('up') then return false end
     else
-    turtle.up() 
-    for i = 1, config.vein_max do
-    scan(valid, ores)       -- Perform a scan operation at the new position
-    if not route then
-        break
+        turtle.up()
+        -- Scan and mine in the new level
+        for i = 1, config.vein_max do
+            scan(valid, ores)
+            -- Recalculate the route based on new scan
+            route = fastest_route(valid, state.location, state.orientation, ores)
+            if not route then break end
+            turtle.select(1)
+            if not follow_route(route) then return false end
+            ores[str_xyz(state.location)] = nil
+        end
     end
--- Retrieve ore
-    turtle.select(1)
-    if not follow_route(route) then return false end
-    ores[str_xyz(state.location)] = nil
-end
-    end
-    turtle.down()
-    if not turtle.down() then return false end
+
+    -- Attempt to return to the starting position
     if not follow_route(fastest_route(valid, state.location, state.orientation, {[start] = true})) then return false end
+
     return true
 end
 
