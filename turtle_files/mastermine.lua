@@ -16,6 +16,7 @@ function parse_requests()
                 state.success = actions[message.action](unpack(message.data)) -- EXECUTE DESIRED FUNCTION WITH DESIRED ARGUMENTS
                 state.busy = false
                 if not state.success then
+                    sleep(1)
                 end
                 state.request_id = state.request_id + 1
             end

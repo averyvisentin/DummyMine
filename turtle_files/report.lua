@@ -31,6 +31,6 @@ while true do
             busy             = state.busy,
         }, 'turtle_report')
     
-
+        sleep(0.5)
     
 end

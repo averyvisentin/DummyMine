@@ -9,6 +9,6 @@ while true do
             location = {x = x, y = y, z = z},
         }, 'pocket_report')
     
-
+sleep(2)
     
 end
