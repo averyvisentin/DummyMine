@@ -872,6 +872,7 @@ end
         if not follow_route(route) then return false end
         ores[str_xyz(state.location)] = nil
     end
+    turtlle.down()
     if not follow_route(fastest_route(valid, state.location, state.orientation, {[start] = true})) then return false end
     return true
 end
