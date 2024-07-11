@@ -252,8 +252,17 @@ end
 
 
 function good_on_fuel(mining_turtle, chunky_turtle)
+    local function has_enough_fuel(turtle)
+        return turtle.data.fuel_level == "unlimited" or turtle.data.fuel_level > fuel_needed
+    end
     local fuel_needed = math.ceil(basics.distance(mining_turtle.data.location, config.locations.mine_exit) * 1.5)
-    return (mining_turtle.data.fuel_level == "unlimited" or mining_turtle.data.fuel_level > fuel_needed) and ((not config.use_chunky_turtles) or (chunky_turtle.data.fuel_level == "unlimited" or chunky_turtle.data.fuel_level > fuel_needed))
+    if not has_enough_fuel(mining_turtle) then
+        return false
+    end
+    if config.use_chunky_turtles and not has_enough_fuel(chunky_turtle) then
+        return false
+    end
+    return true
 end
 
 
@@ -267,44 +276,35 @@ end
 
 function go_mine(mining_turtle)
     update_strip(mining_turtle)
-    add_task(mining_turtle, {
-        action = 'mine_vein',
-        data = {mining_turtle.strip.orientation},
-        })
-    add_task(mining_turtle, {
-        action = 'clear_gravity_blocks',
-        })
-    add_task(mining_turtle, {
-        action = 'turtle.up',
-        })
-    add_task(mining_turtle, {
-        action = 'mine_vein',
-        })
-    add_task(mining_turtle, {
-        action = 'turtle.down',
-        })
-    if config.use_chunky_turtles then
-        add_task(mining_turtle, {
-            action = 'go_to_strip',
-            data = {mining_turtle.strip},
-            end_state = 'wait',
-            end_function = follow,
-            end_function_args = {mining_turtle.pair}
-        })
-    else
-        add_task(mining_turtle, {
-            action = 'go_to_strip',
-            data = {mining_turtle.strip},
-            end_state = 'wait'
-        })
+
+    local function create_task(action, data, end_state, end_function, end_function_args)
+        return {
+            action = action,
+            data = data,
+            end_state = end_state,
+            end_function = end_function,
+            end_function_args = end_function_args,
+        }
     end
+
+    add_task(mining_turtle, create_task('mine_vein', {mining_turtle.strip.orientation}, nil, nil, nil))
+    add_task(mining_turtle, create_task('clear_gravity_blocks', nil, nil, nil, nil))
+
+    local end_state = 'wait'
+    local end_function = config.use_chunky_turtles and follow or nil
+    local end_function_args = config.use_chunky_turtles and {mining_turtle.pair} or nil
+
+    add_task(mining_turtle, create_task('go_to_strip', {mining_turtle.strip}, end_state, end_function, end_function_args))
 
     mining_turtle.steps_left = mining_turtle.steps_left - 1
 
-    local file = fs.open(state.turtles_dir_path .. mining_turtle.id .. '/deployed', 'w')
+    local file_path = state.turtles_dir_path .. mining_turtle.id .. '/deployed'
+    local file = fs.open(file_path, 'w')
     file.write(mining_turtle.steps_left)
     file.close()
 end
+
+
 
 
 
@@ -482,12 +482,9 @@ end
 
 
 function add_task(turtle, task)
-    if not task.data then
-        task.data = {}
-    end
+    turtle.tasks = turtle.tasks or {}
     table.insert(turtle.tasks, task)
 end
-
 
 function send_tasks(turtle)
     local task = turtle.tasks[1]

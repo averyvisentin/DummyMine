@@ -51,7 +51,7 @@ vein_max = 64
 
 -- EXTRA FUEL FOR TURTLES TO BRING ALONG,
 -- JUST IN CASE
-fuel_padding = 180
+fuel_padding = 10
 
 
 -- FUEL PER ITEM 

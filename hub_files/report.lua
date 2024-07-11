@@ -15,6 +15,5 @@ while true do
             turtles_parked = turtles_parked,
             turtle_count   = turtle_count,
         }, 'hub_report')
-    sleep(0.5)
-    
+    sleep(0.5)  
 end
