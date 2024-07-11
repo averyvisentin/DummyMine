@@ -821,69 +821,36 @@ function fastest_route(area, pos, fac, end_locations)
 end
 
 function mine_vein(direction)
-    if not face(direction) then return false end
-    
+    if not face(direction) then return false end  
     -- Log starting location
     local start = str_xyz({x = state.location.x, y = state.location.y, z = state.location.z}, state.orientation)
-
     -- Begin block map
     local valid = {}
     local ores = {}
     valid[str_xyz(state.location)] = true
     valid[str_xyz(getblock.back(state.location, state.orientation))] = false
     for i = 1, config.vein_max do
-
         -- Scan adjacent
         scan(valid, ores)
-
         -- Search for nearest ore
         local route = fastest_route(valid, state.location, state.orientation, ores)
-
         -- Check if there is one
         if not route then
             break
         end
-
         -- Retrieve ore
         turtle.select(1)
         if not follow_route(route) then return false end
         ores[str_xyz(state.location)] = nil
 
-        -- Check above for ore and move up if present
-        if detect.up() then
-            safedig('up')
-            turtle.up()
-
-            -- Scan adjacent from the new position
-            scan(valid, ores)
-
-            -- Search for nearest ore
-            local route = fastest_route(valid, state.location, state.orientation, ores)
-
-            -- Check if there is one
-            if not route then
-                -- Move back down if no ore is found above
-                turtle.down()
-                break
-            end
-
-            -- Retrieve ore
-            if not follow_route(route) then return false end
-            ores[str_xyz(state.location)] = nil
-        end
     end
-
-    -- Return to the starting location
     if not follow_route(fastest_route(valid, state.location, state.orientation, {[start] = true})) then return false end
-
-    -- Clear any block above if present
     if detect.up() then
         safedig('up')
     end
     
     return true
 end
-
 
 -- Clear gravel and Sand
 function clear_gravity_blocks()
