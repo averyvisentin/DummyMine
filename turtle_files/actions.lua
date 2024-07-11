@@ -6,6 +6,121 @@ str_xyz = basics.str_xyz
 --    lua_print(thing)
 --    log_file.writeLine(thing)
 --end
+bumps = {
+    north = { 0,  0, -1},
+    south = { 0,  0,  1},
+    east  = { 1,  0,  0},
+    west  = {-1,  0,  0},
+}
+left_shift = {
+    north = 'west',
+    south = 'east',
+    east  = 'north',
+    west  = 'south',
+}
+right_shift = {
+    north = 'east',
+    south = 'west',
+    east  = 'south',
+    west  = 'north',
+}
+reverse_shift = {
+    north = 'south',
+    south = 'north',
+    east  = 'west',
+    west  = 'east',
+}
+move = {
+    forward = turtle.forward,
+    up      = turtle.up,
+    down    = turtle.down,
+    back    = turtle.back,
+    left    = turtle.turnLeft,
+    right   = turtle.turnRight
+}
+detect = {
+    forward = turtle.detect,
+    up      = turtle.detectUp,
+    down    = turtle.detectDown
+}
+inspect = {
+    forward = turtle.inspect,
+    up      = turtle.inspectUp,
+    down    = turtle.inspectDown
+}
+dig = {
+    forward = turtle.dig,
+    up      = turtle.digUp,
+    down    = turtle.digDown
+}
+attack = {
+    forward = turtle.attack,
+    up      = turtle.attackUp,
+    down    = turtle.attackDown
+}
+getblock = {
+    up = function(pos, fac)
+        if not pos then pos = state.location end
+        if not fac then fac = state.orientation end
+        return {x = pos.x, y = pos.y + 1, z = pos.z}
+    end,
+    down = function(pos, fac)
+        if not pos then pos = state.location end
+        if not fac then fac = state.orientation end
+        return {x = pos.x, y = pos.y - 1, z = pos.z}
+    end,
+    forward = function(pos, fac)
+        if not pos then pos = state.location end
+        if not fac then fac = state.orientation end
+        local bump = bumps[fac]
+        return {x = pos.x + bump[1], y = pos.y + bump[2], z = pos.z + bump[3]}
+    end,
+    back = function(pos, fac)
+        if not pos then pos = state.location end
+        if not fac then fac = state.orientation end
+        local bump = bumps[fac]
+        return {x = pos.x - bump[1], y = pos.y - bump[2], z = pos.z - bump[3]}
+    end,
+    left = function(pos, fac)
+        if not pos then pos = state.location end
+        if not fac then fac = state.orientation end
+        local bump = bumps[left_shift[fac]]
+        return {x = pos.x + bump[1], y = pos.y + bump[2], z = pos.z + bump[3]}
+    end,
+    right = function(pos, fac)
+        if not pos then pos = state.location end
+        if not fac then fac = state.orientation end
+        local bump = bumps[right_shift[fac]]
+        return {x = pos.x + bump[1], y = pos.y + bump[2], z = pos.z + bump[3]}
+    end,
+}
+function digblock(direction)
+    dig[direction]()
+    return true
+end
+function delay(duration)
+    sleep(duration)
+    return true
+end
+function up()
+    return go('up')
+end
+function forward()
+    return go('forward')
+end
+function down()
+    return go('down')
+end
+function back()
+    return go('back')
+end
+function left()
+    return go('left')
+end
+function right()
+    return go('right')
+end
+
 --location state
 function update_state(new_location, new_orientation)
     if new_location then
@@ -93,23 +208,22 @@ function get_neighbors(node)
 end
 
 function try_horizontal_move()
-    local attempts = 4 -- There are 4 directions to check for horizontal movement
-    while attempts > 0 do
+    for i = 1, 4 do
         if not turtle.detect() then
             if turtle.forward() then
+                log_movement("forward")
                 return true -- Successful horizontal movement
             end
         end
         turtle.turnRight()
-        attempts = attempts - 1
     end
     return false -- No horizontal movement was possible
 end
 
-function safe_move()
+function safe_move(direction)
     -- Try to move horizontally first
     if try_horizontal_move() then
-        log_movement(direction) -- Log successful horizontal movement
+        log_movement(state.direction) -- Log successful horizontal movement
         return true
     end
     -- If all horizontal directions are blocked, try to move up
@@ -143,139 +257,6 @@ function recover_gps()
     end
     return false
 end
-bumps = {
-    north = { 0,  0, -1},
-    south = { 0,  0,  1},
-    east  = { 1,  0,  0},
-    west  = {-1,  0,  0},
-}
-left_shift = {
-    north = 'west',
-    south = 'east',
-    east  = 'north',
-    west  = 'south',
-}
-right_shift = {
-    north = 'east',
-    south = 'west',
-    east  = 'south',
-    west  = 'north',
-}
-reverse_shift = {
-    north = 'south',
-    south = 'north',
-    east  = 'west',
-    west  = 'east',
-}
-move = {
-    forward = turtle.forward,
-    up      = turtle.up,
-    down    = turtle.down,
-    back    = turtle.back,
-    left    = turtle.turnLeft,
-    right   = turtle.turnRight
-}
-detect = {
-    forward = turtle.detect,
-    up      = turtle.detectUp,
-    down    = turtle.detectDown
-}
-inspect = {
-    forward = turtle.inspect,
-    up      = turtle.inspectUp,
-    down    = turtle.inspectDown
-}
-dig = {
-    forward = turtle.dig,
-    up      = turtle.digUp,
-    down    = turtle.digDown
-}
-attack = {
-    forward = turtle.attack,
-    up      = turtle.attackUp,
-    down    = turtle.attackDown
-}
-getblock = {
-    up = function(pos, fac)
-        if not pos then pos = state.location end
-        if not fac then fac = state.orientation end
-        return {x = pos.x, y = pos.y + 1, z = pos.z}
-    end,
-
-    down = function(pos, fac)
-        if not pos then pos = state.location end
-        if not fac then fac = state.orientation end
-        return {x = pos.x, y = pos.y - 1, z = pos.z}
-    end,
-
-    forward = function(pos, fac)
-        if not pos then pos = state.location end
-        if not fac then fac = state.orientation end
-        local bump = bumps[fac]
-        return {x = pos.x + bump[1], y = pos.y + bump[2], z = pos.z + bump[3]}
-    end,
-
-    back = function(pos, fac)
-        if not pos then pos = state.location end
-        if not fac then fac = state.orientation end
-        local bump = bumps[fac]
-        return {x = pos.x - bump[1], y = pos.y - bump[2], z = pos.z - bump[3]}
-    end,
-
-    left = function(pos, fac)
-        if not pos then pos = state.location end
-        if not fac then fac = state.orientation end
-        local bump = bumps[left_shift[fac]]
-        return {x = pos.x + bump[1], y = pos.y + bump[2], z = pos.z + bump[3]}
-    end,
-
-    right = function(pos, fac)
-        if not pos then pos = state.location end
-        if not fac then fac = state.orientation end
-        local bump = bumps[right_shift[fac]]
-        return {x = pos.x + bump[1], y = pos.y + bump[2], z = pos.z + bump[3]}
-    end,
-}
-
-function digblock(direction)
-    dig[direction]()
-    return true
-end
-
-function delay(duration)
-    sleep(duration)
-    return true
-end
-
-function up()
-    return go('up')
-end
-
-
-function forward()
-    return go('forward')
-end
-
-
-function down()
-    return go('down')
-end
-
-
-function back()
-    return go('back')
-end
-
-
-function left()
-    return go('left')
-end
-
-
-function right()
-    return go('right')
-end
-
 
 function follow_route(route)
     for step in route:gmatch'.' do
@@ -333,31 +314,31 @@ function log_movement(direction)
 end
 
 function go(direction, nodig)
+    local success = move[direction]
+    -- Attempt to dig if something is detected in the direction and digging is allowed
     if not nodig then
-        if detect[direction] then
-            if detect[direction]() then
-                safedig(direction)
-            end
+        if detect[direction] then 
+        if detect[direction]() then
+            safedig(direction)
         end
     end
-        if not move[direction] then
-            safe_move()
-            return false -- If the move function for the direction does not exist, exit early
-        end
 
-        if move[direction]() then
-            safe_move()
-            log_movement(direction) -- Log successful movement
-            return true -- Movement successful, exit function
-        else
-            if attack[direction] then
-                attack[direction]() -- Attempt to attack in case the obstacle is an attackable entity
+    if not success then
+            safe_move(direction)
+        if not success then
+            if attack[direction] then    -- If unable to move, attempt to attack in case the obstacle is an attackable entity
+                attack[direction]()
             end
-            return false
+            log_movement(direction)
+            return false -- Movement was not successful
         end
-        log_movement(direction)
-        return true
-    end
+    else
+    log_movement(direction)
+    return true
+end
+end
+end
+
 
 function go_to_axis(axis, coordinate, nodig)
     local delta = coordinate - state.location[axis]
