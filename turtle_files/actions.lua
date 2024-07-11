@@ -829,46 +829,52 @@ end
 function mine_vein(direction)
     if not face(direction) then return false end
     local start = str_xyz({x = state.location.x, y = state.location.y, z = state.location.z}, state.orientation)
-    local valid = {}
+    local valid = {} --begin block map
     local ores = {}
     valid[str_xyz(state.location)] = true
     valid[str_xyz(getblock.back(state.location, state.orientation))] = false
-
     for i = 1, config.vein_max do
-        scan(valid, ores)
-        local route = fastest_route(valid, state.location, state.orientation, ores)
-        if not route then break end
-        turtle.select(1)
+        scan(valid, ores) --scan ore
+        local route = fastest_route(valid, state.location, state.orientation, ores) --search for nearest route
+        if not route then break end --check if there is one
+        turtle.select(1) --retrieve ore
         if not follow_route(route) then return false end
         ores[str_xyz(state.location)] = nil
     end
-
+    -- Attempt to return to the starting position
     if not follow_route(fastest_route(valid, state.location, state.orientation, {[start] = true})) then return false end
 
     -- Move up and attempt to mine again only if there's no block above or if safedig was successful
     if detect.up() then
-        if not safedig('up') then return false end
+        if not safedig('up') then return false end --dig block above safely
     else
         turtle.up()
-        -- Scan and mine in the new level
-        for i = 1, config.vein_max do
-            scan(valid, ores)
-            -- Recalculate the route based on new scan
-            route = fastest_route(valid, state.location, state.orientation, ores)
-            if not route then break end
-            turtle.select(1)
-            if not follow_route(route) then return false end
-            ores[str_xyz(state.location)] = nil
-        end
     end
 
-    -- Attempt to return to the starting position
-    if not follow_route(fastest_route(valid, state.location, state.orientation, {[start] = true})) then return false end
+    -- Begin a new block map from here and scan again
+    valid = {} -- Reset block map
+    ores = {} -- Reset ores map
+    valid[str_xyz(state.location)] = true
+    valid[str_xyz(getblock.back(state.location, state.orientation))] = false
+    scan(valid, ores) -- Scan ore
+
+    if next(ores) ~= nil then -- Check if there is ore
+        -- Mine the ore
+        local route = fastest_route(valid, state.location, state.orientation, ores)
+        if route and follow_route(route) then
+            turtle.select(1) -- Retrieve ore
+            -- Attempt to return to the starting position after mining
+            if not follow_route(fastest_route(valid, state.location, state.orientation, {[start] = true})) then return false end
+        else
+            return false
+        end
+    else
+        -- If there isn't ore, return to start position
+        if not follow_route(fastest_route(valid, state.location, state.orientation, {[start] = true})) then return false end
+    end
 
     return true
 end
-
-
 
 -- Clear gravel and Sand
 function clear_gravity_blocks()
