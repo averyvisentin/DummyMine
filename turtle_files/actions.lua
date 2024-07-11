@@ -314,29 +314,36 @@ function log_movement(direction)
 end
 
 function go(direction, nodig)
-    local success = move[direction]
-    -- Attempt to dig if something is detected in the direction and digging is allowed
+    local retryLimit = 5 -- Maximum number of move attempts
+    local retryCount = 0 -- Current retry attempt
+
     if not nodig then
-        if detect[direction] then 
-        if detect[direction]() then
-            safedig(direction)
+        if detect[direction] then
+            if detect[direction]() then
+                safedig(direction)
+            end
         end
     end
 
-    if not success then
-            safe_move(direction)
-        if not success then
-            if attack[direction] then    -- If unable to move, attempt to attack in case the obstacle is an attackable entity
-                attack[direction]()
-            end
-            log_movement(direction)
-            return false -- Movement was not successful
+    while retryCount < retryLimit do
+        if not move[direction] then
+            return false -- If the move function for the direction does not exist, exit early
         end
-    else
-    log_movement(direction)
-    return true
-end
-end
+
+        if move[direction]() then
+            log_movement(direction) -- Log successful movement
+            return true -- Movement successful, exit function
+        else
+            if attack[direction] then
+                attack[direction]() -- Attempt to attack in case the obstacle is an attackable entity
+            end
+            retryCount = retryCount + 1 -- Increment retry count
+            sleep(1) -- Wait for 1 second before retrying
+        end
+    end
+
+    -- If the function reaches this point, all retries have failed
+    return false
 end
 
 
