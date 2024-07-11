@@ -279,8 +279,8 @@ function go_mine(mining_turtle)
 
     update_strip(mining_turtle)
     add_task(mining_turtle, {
-        action = 'move',
-        data = 'up'
+        action = 'turtle.up'
+
     })
 
     update_strip(mining_turtle)
@@ -291,8 +291,7 @@ function go_mine(mining_turtle)
 
     update_strip(mining_turtle)
     add_task(mining_turtle, {
-        action = 'move',
-        data = 'down'
+        action = 'turtle.down'
     })    
 
     if config.use_chunky_turtles then
