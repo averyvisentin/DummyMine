@@ -36,7 +36,7 @@ grid_width = 4
 --     most efficient would be to make this
 --     number huge, but turtles may be gone a
 --     while (plus harder to recall).
-mission_length = 150
+mission_length = 200
 
 
 -- MAXIMUM BLOCKS A TURTLE MINES IN A
@@ -51,7 +51,7 @@ vein_max = 64
 
 -- EXTRA FUEL FOR TURTLES TO BRING ALONG,
 -- JUST IN CASE
-fuel_padding = 60
+fuel_padding = 180
 
 
 -- FUEL PER ITEM 
