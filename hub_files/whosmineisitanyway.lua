@@ -276,14 +276,12 @@ function go_mine(mining_turtle)
         })
     add_task(mining_turtle, {
         action = 'turtle.up',
-        end_state = 'wait',
         })
     add_task(mining_turtle, {
         action = 'mine_vein',
         })
     add_task(mining_turtle, {
         action = 'turtle.down',
-        end_state = 'wait',
         })
     if config.use_chunky_turtles then
         add_task(mining_turtle, {
