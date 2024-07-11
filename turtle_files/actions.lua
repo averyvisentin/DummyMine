@@ -181,29 +181,23 @@ end
 
 function get_neighbors(node)
     local neighbors = {}
-    -- Updated directions to include up and down along z-axis
+    -- Adjusted directions to only include up, down, and forward
     local directions = {
-        {x = 0, y = -1, z = 0}, -- up
-        {x = 0, y = 1, z = 0},  -- down
-        {x = -1, y = 0, z = 0}, -- left
-        {x = 1, y = 0, z = 0},  -- right
-        {x = 0, y = 0, z = -1}, -- above
-        {x = 0, y = 0, z = 1}   -- below
+        {x = 0, y = 1, z = 0},  -- forward
+        {x = 0, y = 0, z = 1},  -- up (assuming z is vertical)
+        {x = 0, y = 0, z = -1}, -- down
     }
     local grid_size = {width = 3, height = 3, depth = 3} -- Example grid size including depth
-
     for _, direction in ipairs(directions) do
         local neighbor_x = node.x + direction.x
         local neighbor_y = node.y + direction.y
-        local neighbor_z = node.z + direction.z -- Added z coordinate
-
+        local neighbor_z = node.z + direction.z
         if neighbor_x >= 1 and neighbor_x <= grid_size.width and
            neighbor_y >= 1 and neighbor_y <= grid_size.height and
-           neighbor_z >= 1 and neighbor_z <= grid_size.depth then -- Check for z coordinate within bounds
+           neighbor_z >= 1 and neighbor_z <= grid_size.depth then
             table.insert(neighbors, {x = neighbor_x, y = neighbor_y, z = neighbor_z})
         end
     end
-
     return neighbors
 end
 
@@ -828,53 +822,68 @@ end
 
 function mine_vein(direction)
     if not face(direction) then return false end
+    
+    -- Log starting location
     local start = str_xyz({x = state.location.x, y = state.location.y, z = state.location.z}, state.orientation)
-    local valid = {} --begin block map
+
+    -- Begin block map
+    local valid = {}
     local ores = {}
     valid[str_xyz(state.location)] = true
     valid[str_xyz(getblock.back(state.location, state.orientation))] = false
     for i = 1, config.vein_max do
-        scan(valid, ores) --scan ore
-        local route = fastest_route(valid, state.location, state.orientation, ores) --search for nearest route
-        if not route then break end --check if there is one
-        turtle.select(1) --retrieve ore
+
+        -- Scan adjacent
+        scan(valid, ores)
+
+        -- Search for nearest ore
+        local route = fastest_route(valid, state.location, state.orientation, ores)
+
+        -- Check if there is one
+        if not route then
+            break
+        end
+
+        -- Retrieve ore
+        turtle.select(1)
         if not follow_route(route) then return false end
         ores[str_xyz(state.location)] = nil
+
+        -- Check above for ore and move up if present
+        if detect.up() then
+            safedig('up')
+            turtle.up()
+
+            -- Scan adjacent from the new position
+            scan(valid, ores)
+
+            -- Search for nearest ore
+            local route = fastest_route(valid, state.location, state.orientation, ores)
+
+            -- Check if there is one
+            if not route then
+                -- Move back down if no ore is found above
+                turtle.down()
+                break
+            end
+
+            -- Retrieve ore
+            if not follow_route(route) then return false end
+            ores[str_xyz(state.location)] = nil
+        end
     end
-    -- Attempt to return to the starting position
+
+    -- Return to the starting location
     if not follow_route(fastest_route(valid, state.location, state.orientation, {[start] = true})) then return false end
 
-    -- Move up and attempt to mine again only if there's no block above or if safedig was successful
--- After moving up and potentially mining more ore
-if detect.up() then
-    if not safedig('up') then return false end --dig block above safely
-else
-    turtle.up()
-end
-
--- Begin a new block map from here and scan again
-valid = {} -- Reset block map
-ores = {} -- Reset ores map
-valid[str_xyz(state.location)] = true
-valid[str_xyz(getblock.back(state.location, state.orientation))] = false
-scan(valid, ores) -- Scan ore
-
-if next(ores) ~= nil then -- Check if there is ore
-    -- Mine the ore
-    local route = fastest_route(valid, state.location, state.orientation, ores)
-    if route and follow_route(route) then
-        turtle.select(1) -- Retrieve ore
-    else
-        return false
+    -- Clear any block above if present
+    if detect.up() then
+        safedig('up')
     end
+    
+    return true
 end
 
--- Attempt to return to the starting position after mining or if no ore was found
-local return_route = fastest_route(valid, state.location, state.orientation, {[start] = true})
-if not follow_route(return_route) then return false end
-
-return true
-end
 
 -- Clear gravel and Sand
 function clear_gravity_blocks()
