@@ -270,8 +270,8 @@ function follow_route(route)
     end
     return true
 end
-
-
+                    
+                    
 function face(orientation)
     if state.orientation == orientation then
         return true
@@ -287,6 +287,7 @@ function face(orientation)
     end
     return true
 end
+
 
 function log_movement(direction)
     if direction == 'up' then
@@ -307,10 +308,8 @@ function log_movement(direction)
     return true
 end
 
-function go(direction, nodig)
-    local retryLimit = 5 -- Maximum number of move attempts
-    local retryCount = 0 -- Current retry attempt
 
+function go(direction, nodig)
     if not nodig then
         if detect[direction] then
             if detect[direction]() then
@@ -318,25 +317,17 @@ function go(direction, nodig)
             end
         end
     end
-
-    while retryCount < retryLimit do
-        if not move[direction] then
-            return false -- If the move function for the direction does not exist, exit early
-        end
-
-        if move[direction]() then
-            log_movement(direction) -- Log successful movement
-            return true -- Movement successful, exit function
-        else
-            if attack[direction] then
-                attack[direction]() -- Attempt to attack in case the obstacle is an attackable entity
-            end
-            retryCount = retryCount + 1 -- Increment retry count
-        end
+    if not move[direction] then
+        return false
     end
-
-    -- If the function reaches this point, all retries have failed
-    return false
+    if not move[direction]() then
+        if attack[direction] then
+            attack[direction]()
+        end
+        return false
+    end
+    log_movement(direction)
+    return true
 end
 
 
@@ -345,7 +336,7 @@ function go_to_axis(axis, coordinate, nodig)
     if delta == 0 then
         return true
     end
-
+    
     if axis == 'x' then
         if delta > 0 then
             if not face('east') then return false end
@@ -359,7 +350,7 @@ function go_to_axis(axis, coordinate, nodig)
             if not face('north') then return false end
         end
     end
-
+    
     for i = 1, math.abs(delta) do
         if axis == 'y' then
             if delta > 0 then
@@ -446,6 +437,7 @@ function go_to_home()
     return true
 end
 
+
 function go_to_home_exit()
     if basics.in_area(state.location, config.locations.greater_home_area) then
         if not go_to(config.locations.home_exit, nil, config.paths.home_to_home_exit) then return false end
@@ -486,18 +478,12 @@ function go_to_waiting_room()
     return true
 end
 
-function go_to_waiting_room()
-    if not basics.in_area(state.location, config.locations.waiting_room_line_area) then
-        if not go_to_home() then return false end
-    end
-    if not go_to(config.locations.waiting_room, nil, config.paths.home_to_waiting_room) then return false end
-    return true
-end
 
 function go_to_mine_enter()
     if not go_route(config.locations.waiting_room_to_mine_enter_route) then return false end
     return true
 end
+
 
 function go_to_strip(strip)
     if state.location.y < config.locations.mine_enter.y or basics.in_location(state.location, config.locations.mine_enter) then
@@ -558,6 +544,7 @@ function safedig(direction)
     return true
 end
 
+
 function dump_items(omit)
     for slot = 1, 16 do
         if turtle.getItemCount(slot) > 0 and ((not omit) or (not omit[turtle.getItemDetail(slot).name])) then
@@ -567,6 +554,8 @@ function dump_items(omit)
     end
     return true
 end
+    
+
 
 function prepare(min_fuel_amount)
     if state.item_count > 0 then
@@ -585,6 +574,7 @@ function prepare(min_fuel_amount)
     end
     return true
 end
+
 
 function calibrate()
     -- GEOPOSITION BY MOVING TO ADJACENT BLOCK AND BACK
@@ -630,28 +620,31 @@ function calibrate()
     end
     state.location = {x = nx, y = ny, z = nz}
     print('Calibrated to ' .. str_xyz(state.location, state.orientation))
-
+    
     back()
-
+    
     if basics.in_area(state.location, config.locations.home_area) then
         face(left_shift[left_shift[config.locations.homes.increment]])
     end
-
+    
     return true
 end
 
 
 function initialize(session_id, config_values)
     -- INITIALIZE TURTLE
+    
     state.session_id = session_id
+    
     -- COPY CONFIG DATA INTO MEMORY
     for k, v in pairs(config_values) do
         config[k] = v
     end
+    
     -- DETERMINE TURTLE TYPE
     state.peripheral_left = peripheral.getType('left')
     state.peripheral_right = peripheral.getType('right')
-    if state.peripheral_left == 'chunkvial' or state.peripheral_right == 'chunkvial' or state.peripheral_left == 'chunk_vial' or state.peripheral_right == 'chunk_vial' then
+    if state.peripheral_left == 'chunkLoader' or state.peripheral_right == 'chunkLoader' or state.peripheral_left == 'chunky' or state.peripheral_right == 'chunky' then
         state.type = 'chunky'
         for k, v in pairs(config.chunky_turtle_locations) do
             config.locations[k] = v
@@ -667,7 +660,7 @@ function initialize(session_id, config_values)
             state.peripheral_left = 'pick'
         end
     end
-
+    
     state.request_id = 1
     state.initialized = true
     return true
@@ -735,14 +728,14 @@ end
 function scan(valid, ores)
     local checked_left  = false
     local checked_right = false
-
+    
     local f = str_xyz(getblock.forward())
     local u = str_xyz(getblock.up())
     local d = str_xyz(getblock.down())
     local l = str_xyz(getblock.left())
     local r = str_xyz(getblock.right())
     local b = str_xyz(getblock.back())
-
+    
     if not valid[f] and valid[f] ~= false then
         valid[f] = detect_ore('forward')
         ores[f] = valid[f]
@@ -783,6 +776,7 @@ function scan(valid, ores)
     end
 end
 
+
 function fastest_route(area, pos, fac, end_locations)
     local queue = {}
     local explored = {}
@@ -794,7 +788,7 @@ function fastest_route(area, pos, fac, end_locations)
         }
     )
     explored[str_xyz(pos, fac)] = true
- 
+
     while #queue > 0 do
         local node = table.remove(queue, 1)
         if end_locations[str_xyz(node.coords)] or end_locations[str_xyz(node.coords, node.facing)] then
@@ -816,31 +810,40 @@ function fastest_route(area, pos, fac, end_locations)
     end
 end
 
+
 function mine_vein(direction)
-    if not face(direction) then return false end  
+    if not face(direction) then return false end
+    
     -- Log starting location
     local start = str_xyz({x = state.location.x, y = state.location.y, z = state.location.z}, state.orientation)
+
     -- Begin block map
     local valid = {}
     local ores = {}
     valid[str_xyz(state.location)] = true
     valid[str_xyz(getblock.back(state.location, state.orientation))] = false
     for i = 1, config.vein_max do
+
         -- Scan adjacent
         scan(valid, ores)
+
         -- Search for nearest ore
         local route = fastest_route(valid, state.location, state.orientation, ores)
+
         -- Check if there is one
         if not route then
             break
         end
+
         -- Retrieve ore
         turtle.select(1)
         if not follow_route(route) then return false end
         ores[str_xyz(state.location)] = nil
 
     end
+
     if not follow_route(fastest_route(valid, state.location, state.orientation, {[start] = true})) then return false end
+
     if detect.up() then
         safedig('up')
     end
@@ -848,11 +851,12 @@ function mine_vein(direction)
     return true
 end
 
--- Clear gravel and Sand
+
 function clear_gravity_blocks()
     for _, direction in pairs({'forward', 'up'}) do
         while config.gravitynames[ ({inspect[direction]()})[2].name ] do
             safedig(direction)
+            sleep(1)
         end
     end
     return true

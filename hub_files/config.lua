@@ -73,7 +73,7 @@ pocket_timeout = 5
 
 -- TIME TO WAIT AFTER SENDING TASK WITH NO
 -- RESPONSE TO RESEND
-task_timeout = 0.5
+task_timeout = 1
 
 
 -- EVERY BLOCK NAME CONTAINING ANY OF THESE
@@ -101,16 +101,16 @@ mine_levels = {
     -- {level = 40, chance = 0.2},
     -- {level = 12, chance = 0.5},
 
-    {level = -40, chance = 0.1},
-    {level = -30, chance = 0.1},
-    {level = -14, chance = 0.1},
-    {level = -12, chance = 0.1},
-    {level = -10, chance = 0.1},
-    {level = -8, chance = 0.1},
-    {level = 4, chance = 0.1},
-    {level = 0, chance = 0.1},
-    {level = 8, chance = 0.1},
-    {level = 10, chance = 0.1},
+--    {level = -40, chance = 0.1},
+--    {level = -30, chance = 0.1},
+--    {level = -14, chance = 0.1},
+--    {level = -12, chance = 0.1},
+--    {level = -10, chance = 0.1},
+--    {level = -8, chance = 0.1},
+--    {level = 4, chance = 0.1},
+--    {level = 0, chance = 0.1},
+--    {level = 8, chance = 0.1},
+    {level = 10, chance = 1.0}
     
 }
 

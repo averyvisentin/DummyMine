@@ -268,32 +268,15 @@ end
 function go_mine(mining_turtle)
     update_strip(mining_turtle)
     add_task(mining_turtle, {
-        action = 'mine_vein',
-        data = {mining_turtle.strip.orientation}
+        actions = {
+            {action = 'mine_vein', data = {}},
+            {action = 'clear_gravity_blocks', data = {turtle.strip.orientation}},
+            {action = 'turtle.up', data = {turtle.strip.orientation}},
+            {action = 'mine_vein', data = {turtle.strip}},
+            {action = 'turtle.down', data = {turtle.strip.orientation}}
+        },
+        end_state = 'wait'
     })
-
-    update_strip(mining_turtle)
-    add_task(mining_turtle, {
-        action = 'clear_gravity_blocks'
-    })
-
-    update_strip(mining_turtle)
-    add_task(mining_turtle, {
-        action = 'turtle.up'
-
-    })
-
-    update_strip(mining_turtle)
-    add_task(mining_turtle, {
-        action = 'mine_vein',
-        data = {mining_turtle.strip.orientation}
-    })
-
-    update_strip(mining_turtle)
-    add_task(mining_turtle, {
-        action = 'turtle.down'
-    })    
-
     if config.use_chunky_turtles then
         add_task(mining_turtle, {
             action = 'go_to_strip',
@@ -525,15 +508,20 @@ function send_tasks(turtle)
         elseif (not turtle_data.busy) and ((not task.epoch) or (task.epoch > os.clock()) or (task.epoch + config.task_timeout < os.clock())) then
             -- ONLY SEND INSTRUCTION AFTER <config.task_timeout> SECONDS HAVE PASSED
             task.epoch = os.clock()
-            print(string.format('Sending %s directive to %d', task.action, turtle.id))
+            print(string.format('Sending %s directive to %d', task.actions[1].action, turtle.id))
             rednet.send(turtle.id, {
-                action = task.action,
-                data = task.data,
+                action = task.actions[1].action,
+                data = task.actions[1].data,
                 request_id = turtle_data.request_id
             }, 'mastermine')
+            table.remove(task.actions, 1)
+            if #task.actions == 0 then
+                table.remove(turtle.tasks, 1)
+            end
         end
     end
 end
+
 
 
 function user_input(input)
