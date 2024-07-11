@@ -845,35 +845,35 @@ function mine_vein(direction)
     if not follow_route(fastest_route(valid, state.location, state.orientation, {[start] = true})) then return false end
 
     -- Move up and attempt to mine again only if there's no block above or if safedig was successful
-    if detect.up() then
-        if not safedig('up') then return false end --dig block above safely
+-- After moving up and potentially mining more ore
+if detect.up() then
+    if not safedig('up') then return false end --dig block above safely
+else
+    turtle.up()
+end
+
+-- Begin a new block map from here and scan again
+valid = {} -- Reset block map
+ores = {} -- Reset ores map
+valid[str_xyz(state.location)] = true
+valid[str_xyz(getblock.back(state.location, state.orientation))] = false
+scan(valid, ores) -- Scan ore
+
+if next(ores) ~= nil then -- Check if there is ore
+    -- Mine the ore
+    local route = fastest_route(valid, state.location, state.orientation, ores)
+    if route and follow_route(route) then
+        turtle.select(1) -- Retrieve ore
     else
-        turtle.up()
+        return false
     end
+end
 
-    -- Begin a new block map from here and scan again
-    valid = {} -- Reset block map
-    ores = {} -- Reset ores map
-    valid[str_xyz(state.location)] = true
-    valid[str_xyz(getblock.back(state.location, state.orientation))] = false
-    scan(valid, ores) -- Scan ore
+-- Attempt to return to the starting position after mining or if no ore was found
+local return_route = fastest_route(valid, state.location, state.orientation, {[start] = true})
+if not follow_route(return_route) then return false end
 
-    if next(ores) ~= nil then -- Check if there is ore
-        -- Mine the ore
-        local route = fastest_route(valid, state.location, state.orientation, ores)
-        if route and follow_route(route) then
-            turtle.select(1) -- Retrieve ore
-            -- Attempt to return to the starting position after mining
-            if not follow_route(fastest_route(valid, state.location, state.orientation, {[start] = true})) then return false end
-        else
-            return false
-        end
-    else
-        -- If there isn't ore, return to start position
-        if not follow_route(fastest_route(valid, state.location, state.orientation, {[start] = true})) then return false end
-    end
-
-    return true
+return true
 end
 
 -- Clear gravel and Sand
