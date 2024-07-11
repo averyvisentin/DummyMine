@@ -16,7 +16,6 @@ function parse_requests()
                 state.success = actions[message.action](unpack(message.data)) -- EXECUTE DESIRED FUNCTION WITH DESIRED ARGUMENTS
                 state.busy = false
                 if not state.success then
-                    sleep(1)
                 end
                 state.request_id = state.request_id + 1
             end
@@ -29,7 +28,6 @@ function main()
     state.last_ping = os.clock()
     while true do
         parse_requests()
-        sleep(0.3)
     end
 end
 

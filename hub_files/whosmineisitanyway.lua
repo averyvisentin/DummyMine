@@ -268,15 +268,23 @@ end
 function go_mine(mining_turtle)
     update_strip(mining_turtle)
     add_task(mining_turtle, {
-        actions = {
-            {action = 'mine_vein', data = {}},
-            {action = 'clear_gravity_blocks', data = {turtle.strip.orientation}},
-            {action = 'turtle.up', data = {turtle.strip.orientation}},
-            {action = 'mine_vein', data = {turtle.strip}},
-            {action = 'turtle.down', data = {turtle.strip.orientation}}
-        },
-        end_state = 'wait'
-    })
+        action = 'mine_vein',
+        data = {mining_turtle.strip.orientation},
+        })
+    add_task(mining_turtle, {
+        action = 'clear_gravity_blocks',
+        })
+    add_task(mining_turtle, {
+        action = 'turtle.up',
+        end_state = 'wait',
+        })
+    add_task(mining_turtle, {
+        action = 'mine_vein',
+        })
+    add_task(mining_turtle, {
+        action = 'turtle.down',
+        end_state = 'wait',
+        })
     if config.use_chunky_turtles then
         add_task(mining_turtle, {
             action = 'go_to_strip',

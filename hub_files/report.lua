@@ -16,6 +16,5 @@ while true do
             turtle_count   = turtle_count,
         }, 'hub_report')
     
-    sleep(0.5)
     
 end

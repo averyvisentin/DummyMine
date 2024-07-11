@@ -644,7 +644,7 @@ function initialize(session_id, config_values)
     -- DETERMINE TURTLE TYPE
     state.peripheral_left = peripheral.getType('left')
     state.peripheral_right = peripheral.getType('right')
-    if state.peripheral_left == 'chunkLoader' or state.peripheral_right == 'chunkLoader' or state.peripheral_left == 'chunky' or state.peripheral_right == 'chunky' then
+    if state.peripheral_left == 'chunkvial' or state.peripheral_right == 'chunkvial' or state.peripheral_left == 'chunk_vial' or state.peripheral_right == 'chunk_vial' then
         state.type = 'chunky'
         for k, v in pairs(config.chunky_turtle_locations) do
             config.locations[k] = v
@@ -856,7 +856,6 @@ function clear_gravity_blocks()
     for _, direction in pairs({'forward', 'up'}) do
         while config.gravitynames[ ({inspect[direction]()})[2].name ] do
             safedig(direction)
-            sleep(1)
         end
     end
     return true

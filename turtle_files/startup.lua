@@ -1,5 +1,5 @@
 -- SET LABEL
-os.setComputerLabel('Dummy ' .. os.getComputerID())
+os.setComputerLabel('Turtle ' .. os.getComputerID())
 
 -- INITIALIZE APIS
 if fs.exists('/apis') then
