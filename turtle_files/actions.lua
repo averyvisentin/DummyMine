@@ -338,7 +338,6 @@ function go(direction, nodig)
                 attack[direction]() -- Attempt to attack in case the obstacle is an attackable entity
             end
             retryCount = retryCount + 1 -- Increment retry count
-            sleep(1) -- Wait for 1 second before retrying
         end
     end
 
@@ -381,26 +380,15 @@ function go_to_axis(axis, coordinate, nodig)
     return true
 end
 
+
 function go_to(end_location, end_orientation, path, nodig)
     if path then
         for axis in path:gmatch'.' do
-            if not go_to_axis(axis, end_location[axis], nodig) then
-                if safe_move() then
-                    if not go_to_axis(axis, end_location[axis], nodig) then return false end
-                else
-                    return false
-                end
-            end
+            if not go_to_axis(axis, end_location[axis], nodig) then return false end
         end
     elseif end_location.path then
         for axis in end_location.path:gmatch'.' do
-            if not go_to_axis(axis, end_location[axis], nodig) then
-                if safe_move() then
-                    if not go_to_axis(axis, end_location[axis], nodig) then return false end
-                else
-                    return false
-                end
-            end
+            if not go_to_axis(axis, end_location[axis], nodig) then return false end
         end
     else
         return false
@@ -408,7 +396,11 @@ function go_to(end_location, end_orientation, path, nodig)
     if end_orientation then
         if not face(end_orientation) then return false end
     elseif end_location.orientation then
-        if not face(end_location.orientation) then return false end
+        if not face(end_location.orientation) then 
+            if safe_move()  then
+            return false
+            end
+        end
     end
     return true
 end
@@ -868,7 +860,6 @@ function clear_gravity_blocks()
     for _, direction in pairs({'forward', 'up'}) do
         while config.gravitynames[ ({inspect[direction]()})[2].name ] do
             safedig(direction)
-            sleep(0.1)
         end
     end
     return true
