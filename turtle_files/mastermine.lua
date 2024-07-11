@@ -29,6 +29,7 @@ function main()
     state.last_ping = os.clock()
     while true do
         parse_requests()
+        sleep(0.1)
     end
 end
 
