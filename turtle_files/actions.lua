@@ -852,9 +852,22 @@ function mine_vein(direction)
     if not follow_route(fastest_route(valid, state.location, state.orientation, {[start] = true})) then return false end
     if detect.up() then
         safedig('up')
-    end    
+        turtle.up() 
+        scan(valid, ores)       -- Perform a scan operation at the new position
+        local route = fastest_route(valid, state.location, state.orientation, ores)
+        if not route then
+-- Retrieve ore
+        turtle.select(1)
+        if not follow_route(route) then return false end
+        ores[str_xyz(state.location)] = nil
+    end
+    if not follow_route(fastest_route(valid, state.location, state.orientation, {[start] = true})) then return false end
+         turtle.down()
     return true
 end
+end
+
+
 -- Clear gravel and Sand
 function clear_gravity_blocks()
     for _, direction in pairs({'forward', 'up'}) do

@@ -261,8 +261,7 @@ function follow(chunky_turtle)
     add_task(chunky_turtle, {
         action = 'go_to_strip',
         data = {chunky_turtle.strip},
-        end_state = 'wait',
-    })
+        end_state = 'wait',    })
 end
 
 
@@ -270,25 +269,21 @@ function go_mine(mining_turtle)
     update_strip(mining_turtle)
     add_task(mining_turtle, {
         action = 'mine_vein',
-        data = {mining_turtle.strip.orientation},
-    })
+        data = {mining_turtle.strip.orientation},    })
     add_task(mining_turtle, {
-        action = 'clear_gravity_blocks',
-    })
+        action = 'clear_gravity_blocks',    })
     if config.use_chunky_turtles then
         add_task(mining_turtle, {
             action = 'go_to_strip',
             data = {mining_turtle.strip},
             end_state = 'wait',
             end_function = follow,
-            end_function_args = {mining_turtle.pair},
-        })
+            end_function_args = {mining_turtle.pair},    })
     else
         add_task(mining_turtle, {
             action = 'go_to_strip',
             data = {mining_turtle.strip},
-            end_state = 'wait',
-        })
+            end_state = 'wait',    })
     end
     mining_turtle.steps_left = mining_turtle.steps_left - 1
     local file = fs.open(state.turtles_dir_path .. mining_turtle.id .. '/deployed', 'w')
@@ -316,14 +311,12 @@ end
 function pair_turtles_send(chunky_turtle)
     add_task(chunky_turtle, {
         action = 'go_to_mine_enter',
-        end_function = pair_turtles_finish
-    })
+        end_function = pair_turtles_finish    })
     
     add_task(chunky_turtle, {
         action = 'go_to_strip',
         data = {chunky_turtle.strip},
-        end_state = 'wait',
-    })
+        end_state = 'wait',    })
 end
 
 
